@@ -61,7 +61,10 @@ class MemberDetailScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              _CallingsSection(memberId: memberId, callingsAsync: callingsAsync),
+              _CallingsSection(
+                memberId: memberId,
+                callingsAsync: callingsAsync,
+              ),
             ],
           ),
         ),
@@ -170,7 +173,8 @@ class _CallingsSection extends StatelessWidget {
         }
         return Column(
           children: [
-            for (final item in items) _CallingTile(item: item),
+            for (final item in items)
+              _CallingTile(memberId: memberId, item: item),
           ],
         );
       },
@@ -179,8 +183,9 @@ class _CallingsSection extends StatelessWidget {
 }
 
 class _CallingTile extends StatelessWidget {
-  const _CallingTile({required this.item});
+  const _CallingTile({required this.memberId, required this.item});
 
+  final String memberId;
   final CallingWithLatestEvent item;
 
   @override
@@ -198,16 +203,25 @@ class _CallingTile extends StatelessWidget {
       title: Text(calling.title),
       subtitle: subtitle.isEmpty ? null : Text(subtitle),
       trailing: event == null
-          ? null
-          : Chip(
-              label: Text(event.state.label),
-              visualDensity: VisualDensity.compact,
-              backgroundColor: theme.colorScheme.secondaryContainer,
-              labelStyle: TextStyle(
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
-              side: BorderSide.none,
+          ? const Icon(Icons.chevron_right)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Chip(
+                  label: Text(event.state.label),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: theme.colorScheme.secondaryContainer,
+                  labelStyle: TextStyle(
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                  side: BorderSide.none,
+                ),
+                const Icon(Icons.chevron_right),
+              ],
             ),
+      onTap: () => context.push(
+        AppRoutes.callingDetail(memberId, calling.id),
+      ),
     );
   }
 }

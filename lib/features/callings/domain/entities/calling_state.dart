@@ -40,6 +40,42 @@ enum CallingState {
   bool get isTerminal =>
       this == CallingState.declined || this == CallingState.released;
 
+  /// Legal next states from the current one.
+  ///
+  /// Encodes the lifecycle:
+  /// selected → extended | declined
+  /// extended → accepted | declined
+  /// accepted → sustained | released
+  /// sustained → set_apart | released
+  /// set_apart → active | released
+  /// active → released
+  /// declined, released → (terminal)
+  List<CallingState> get allowedNextStates => switch (this) {
+        CallingState.selected => const [
+            CallingState.extended,
+            CallingState.declined,
+          ],
+        CallingState.extended => const [
+            CallingState.accepted,
+            CallingState.declined,
+          ],
+        CallingState.accepted => const [
+            CallingState.sustained,
+            CallingState.released,
+          ],
+        CallingState.sustained => const [
+            CallingState.setApart,
+            CallingState.released,
+          ],
+        CallingState.setApart => const [
+            CallingState.active,
+            CallingState.released,
+          ],
+        CallingState.active => const [CallingState.released],
+        CallingState.declined => const [],
+        CallingState.released => const [],
+      };
+
   /// Parse the Postgres wire value into a [CallingState].
   ///
   /// Throws [ArgumentError] on an unrecognized value so we notice schema

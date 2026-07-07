@@ -80,4 +80,52 @@ class CallingsRepository {
 
     return calling;
   }
+
+  /// Fetch a single calling by id.
+  Future<Calling> getCalling(String id) async {
+    final row = await _client.from(_callings).select().eq('id', id).single();
+    return Calling.fromMap(row);
+  }
+
+  /// All events for a calling, newest first.
+  ///
+  /// Ordered by `occurred_at` desc, tie-broken by `created_at` desc — matches
+  /// the logic used to compute "current state".
+  Future<List<CallingEvent>> listEventsForCalling(String callingId) async {
+    final rows = await _client
+        .from(_events)
+        .select()
+        .eq('calling_id', callingId)
+        .order('occurred_at', ascending: false)
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(CallingEvent.fromMap)
+        .toList(growable: false);
+  }
+
+  /// Append a new state event to a calling's history.
+  ///
+  /// Caller is responsible for enforcing allowed transitions; the repo only
+  /// persists what it's told. `recorded_by` is filled from the current auth
+  /// user.
+  Future<CallingEvent> addEvent({
+    required String callingId,
+    required CallingState state,
+    required DateTime occurredAt,
+    String? notes,
+  }) async {
+    final trimmedNotes = notes?.trim();
+    final payload = <String, dynamic>{
+      'calling_id': callingId,
+      'state': state.wireName,
+      'occurred_at': occurredAt.toUtc().toIso8601String(),
+      'recorded_by': _client.auth.currentUser?.id,
+      if (trimmedNotes != null && trimmedNotes.isNotEmpty)
+        'notes': trimmedNotes,
+    };
+    final row =
+        await _client.from(_events).insert(payload).select().single();
+    return CallingEvent.fromMap(row);
+  }
 }

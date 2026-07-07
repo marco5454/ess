@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/callings/presentation/screens/add_calling_screen.dart';
+import '../../features/callings/presentation/screens/calling_detail_screen.dart';
+import '../../features/callings/presentation/screens/record_calling_event_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
@@ -23,6 +25,14 @@ class AppRoutes {
   /// Build the add-calling path for a specific member.
   static String callingAddFor(String memberId) =>
       '/members/$memberId/callings/add';
+
+  /// Build the calling-detail path.
+  static String callingDetail(String memberId, String callingId) =>
+      '/members/$memberId/callings/$callingId';
+
+  /// Build the record-state path for a calling.
+  static String callingRecordFor(String memberId, String callingId) =>
+      '/members/$memberId/callings/$callingId/record';
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
@@ -83,6 +93,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/members/:id/callings/add',
         builder: (_, state) =>
             AddCallingScreen(memberId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/members/:memberId/callings/:callingId',
+        builder: (_, state) => CallingDetailScreen(
+          memberId: state.pathParameters['memberId']!,
+          callingId: state.pathParameters['callingId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/members/:memberId/callings/:callingId/record',
+        builder: (_, state) => RecordCallingEventScreen(
+          memberId: state.pathParameters['memberId']!,
+          callingId: state.pathParameters['callingId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.login,
