@@ -1,8 +1,8 @@
 # Phase 2 — Schema Design
 
-Status: **DRAFT** — for review before writing SQL migrations.
+Status: **APPROVED** — basis for SQL migrations in Chunk 11.
 
-This document defines the initial Supabase (Postgres) schema for the Bishopric Calling Tracker. No code or SQL is committed based on this doc until it's approved.
+This document defines the initial Supabase (Postgres) schema for the Bishopric Calling Tracker. Open questions Q1–Q6 were resolved in favor of the recommended answers; this doc has been updated to reflect the final decisions.
 
 ---
 
@@ -31,15 +31,17 @@ One row per person in the ward that the bishopric tracks. Manually entered.
 | `phone` | `text` | yes | Free-form; no validation at DB level |
 | `email` | `text` | yes | |
 | `notes` | `text` | yes | Free-form bishopric notes about the person |
+| `date_of_birth` | `date` | yes | For age-based calling eligibility (e.g. Aaronic priesthood age) |
+| `sex` | `text` | yes | Relevant for callings restricted by sex. Free-form for now; UI constrains to a fixed set. |
+| `priesthood_office` | `text` | yes | e.g. `deacon`, `teacher`, `priest`, `elder`, `high_priest`, `none`. Free-form; UI constrains. |
 | `is_active` | `boolean` | no | default `true`; false = moved out / removed from ward |
 | `created_at` | `timestamptz` | no | default `now()` |
 | `updated_at` | `timestamptz` | no | default `now()`; updated by trigger |
 
-**Deliberately NOT included in Phase 2** (open for discussion — see Open Questions):
+**Deliberately NOT included in Phase 2**:
 - Membership record number (MRN)
 - Address
-- Date of birth, baptism date, ordination dates
-- Priesthood office
+- Baptism date, ordination dates
 - Household / family relationships
 - Photo
 
@@ -58,7 +60,7 @@ One row per calling assignment. Ties a member to a role. Lifecycle state is NOT 
 | `id` | `uuid` | no | PK |
 | `member_id` | `uuid` | no | FK → `members.id`, `ON DELETE RESTRICT` |
 | `title` | `text` | no | Free-form calling name, e.g. "Elders Quorum President", "Primary Teacher — CTR 7" |
-| `organization` | `text` | yes | Optional grouping, e.g. "Elders Quorum", "Primary", "Ward Council". See Open Questions — could be an enum. |
+| `organization` | `text` | yes | Optional free-form grouping, e.g. "Elders Quorum", "Primary", "Ward Council". Kept as `text` (not enum) for flexibility; the `title` column carries the specificity. |
 | `notes` | `text` | yes | Free-form notes specific to this calling |
 | `created_at` | `timestamptz` | no | default `now()` |
 | `updated_at` | `timestamptz` | no | default `now()` |
@@ -106,7 +108,7 @@ Postgres enum type. Values, in canonical lifecycle order:
 | `selected` | Bishopric has identified this person for the calling but not yet approached them |
 | `extended` | Calling has been extended (offered) to the person |
 | `accepted` | Person accepted the extended calling |
-| `declined` | Person declined the extended calling — **this ends the calling row's lifecycle** (see Open Question 3) |
+| `declined` | Person declined the extended calling — **this ends the calling row's lifecycle.** To offer the same role to someone else, create a new `callings` row with a new `member_id`. |
 | `sustained` | Sustained in sacrament meeting (or ward council for some callings) |
 | `set_apart` | Set apart / ordained to the calling |
 | `active` | Currently serving. A separate explicit state so the bishopric can mark someone as "actively serving" independent of whether we captured the set-apart event. |
@@ -164,64 +166,20 @@ Two lightweight triggers:
 
 ---
 
-## Open Questions (need answers before writing SQL)
+## Resolved decisions (Q1–Q6)
 
-These are cheap to argue about now, expensive later.
+Recorded here for future reference. All six were resolved in favor of the recommended answer.
 
-### Q1 — Member fields
-
-The `members` table above is deliberately minimal (name, phone, email, notes, active flag). Do you want any of these in Phase 2, or defer them all?
-- **Membership record number (MRN)** — useful for cross-referencing with LCR. Just a `text` column.
-- **Date of birth** — needed for age-based calling eligibility (e.g. Aaronic priesthood age).
-- **Priesthood office** (`deacon`, `teacher`, `priest`, `elder`, `high_priest`, `none`) — often relevant to calling decisions.
-- **Sex / gender** — relevant for callings restricted by sex.
-- **Household grouping** — link spouses/families. Nontrivial; probably Phase 3.
-- **Address** — probably not needed in-app; bishopric has LCR for that.
-
-My recommendation: **add `date_of_birth`, `priesthood_office`, and `sex` now**. These directly inform calling decisions and are cheap. Skip MRN and household for now.
-
-### Q2 — `organization` field on `callings`
-
-Free-form `text` or a fixed set of church organizations (`elders_quorum`, `relief_society`, `primary`, `young_men`, `young_women`, `sunday_school`, `bishopric`, `ward_council`, `other`)?
-
-- **Free text**: flexible, no schema churn when a new sub-org appears
-- **Enum**: consistent, queryable, but "Primary — CTR 7" vs "Primary — Nursery" both roll up under `primary`
-
-My recommendation: **`text` for now**, and revisit if we build dashboards that group by org. The `title` column already carries specificity.
-
-### Q3 — What does `declined` mean for the calling row?
-
-When a person declines an extended calling, options:
-- **(a) Terminal state.** The `callings` row is closed. If the bishopric wants to offer the same role to someone else, they create a NEW `callings` row with a new `member_id`. Clean audit trail.
-- **(b) Reassignable.** The `callings` row stays; a new `calling_events` entry can be recorded, and later the row could be reassigned to another member. Ugly — `member_id` on `callings` becomes a lie.
-
-My recommendation: **(a)**. Each calling row is one attempt to fill a role with one person. If it fails, start over.
-
-### Q4 — Timezone of `occurred_at`
-
-`timestamptz` stores UTC and displays in the client's zone. But bishopric records dates ("Sustained on Sunday March 3rd"), not times. Should `occurred_at` be a `date` instead of `timestamptz`?
-
-My recommendation: **`timestamptz`** — keeps the option open for time-of-day precision without a schema change; UI can show date-only.
-
-### Q5 — Deleting members
-
-Currently `ON DELETE RESTRICT` — you can never hard-delete a member with any callings. Is that too strict? Alternatives:
-- `CASCADE` deletes the callings and their events (destructive; loses history)
-- `SET NULL` on `member_id` (orphans callings; probably confusing)
-
-My recommendation: **keep RESTRICT**. Soft-delete via `is_active = false` is the correct path.
-
-### Q6 — Uniqueness constraints
-
-Should any of these be enforced?
-- One "active" calling per person? (i.e. a member can hold only one calling at a time) — **NO**. Members frequently have multiple callings (e.g. Primary teacher + Ward Choir Director).
-- One holder per calling title? (i.e. only one "Elders Quorum President" at a time) — **Possibly**, but hard to express in SQL because "active" is derived from events. Enforce in UI, not DB.
-
-My recommendation: **no DB-level uniqueness constraints** on business rules. Only PK uniqueness.
+- **Q1 — Member fields.** Added `date_of_birth` (`date`), `sex` (`text`), `priesthood_office` (`text`). Deferred: MRN, household, address, baptism/ordination dates, photo. `sex` and `priesthood_office` are `text` (not enums) so the UI can constrain values without schema churn.
+- **Q2 — `callings.organization`.** Free-form `text`. Specificity lives in `title`. Revisit only if grouped dashboards demand it.
+- **Q3 — Meaning of `declined`.** Terminal state for the calling row. To offer the same role to someone else, create a new `callings` row with a new `member_id`. Clean audit trail; no lying about `member_id`.
+- **Q4 — `occurred_at` type.** `timestamptz`. Preserves the option of time-of-day precision; UI shows date-only.
+- **Q5 — Member deletion.** `ON DELETE RESTRICT` on `callings.member_id`. Hard-delete of members with callings is blocked; use `is_active = false` for move-outs.
+- **Q6 — Uniqueness constraints.** None on business rules. Only PK uniqueness. Multiple callings per member is expected and legal. "One president per role at a time" is a UI concern, not a DB one.
 
 ---
 
-## Summary of proposed final shape (assuming my recommendations)
+## Final shape (authoritative)
 
 ```
 members (
@@ -256,4 +214,4 @@ TYPE calling_state ENUM (
 )
 ```
 
-Total: 3 tables, 1 enum, 2 triggers (`set_updated_at` on members + callings), permissive-auth RLS on all three.
+Total: 3 tables, 1 enum, 2 triggers (`set_updated_at` on `members` + `callings`), permissive-auth RLS on all three.
