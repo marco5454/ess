@@ -39,6 +39,17 @@ class CallingDetailScreen extends ConsumerWidget {
                     .push(AppRoutes.callingEdit(memberId, callingId))
                 : null,
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete calling',
+            onPressed: callingAsync.hasValue
+                ? () => _confirmAndDeleteCalling(
+                      context,
+                      ref,
+                      callingAsync.requireValue,
+                    )
+                : null,
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -99,6 +110,50 @@ class CallingDetailScreen extends ConsumerWidget {
         orElse: () => null,
       ),
     );
+  }
+
+  Future<void> _confirmAndDeleteCalling(
+    BuildContext context,
+    WidgetRef ref,
+    Calling calling,
+  ) async {
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this calling?'),
+        content: Text(
+          'This will permanently remove "${calling.title}" and its entire '
+          'history. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(callingsRepositoryProvider).deleteCalling(calling.id);
+      ref.invalidate(callingsForMemberProvider(memberId));
+      messenger.showSnackBar(const SnackBar(content: Text('Calling deleted')));
+      router.pop();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
   }
 }
 

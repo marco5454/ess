@@ -148,4 +148,10 @@ class CallingsRepository {
   Future<void> deleteEvent(String id) async {
     await _client.from(_events).delete().eq('id', id);
   }
+
+  /// Delete a calling by id. Associated `calling_events` rows are removed via
+  /// the FK `ON DELETE CASCADE` on `calling_events.calling_id`.
+  Future<void> deleteCalling(String id) async {
+    await _client.from(_callings).delete().eq('id', id);
+  }
 }
