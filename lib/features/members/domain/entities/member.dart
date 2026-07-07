@@ -124,13 +124,73 @@ class NewMember {
 
     if (dateOfBirth != null) {
       // Postgres `date` column accepts YYYY-MM-DD.
-      final d = dateOfBirth!;
-      final iso =
-          '${d.year.toString().padLeft(4, '0')}-'
-          '${d.month.toString().padLeft(2, '0')}-'
-          '${d.day.toString().padLeft(2, '0')}';
-      map['date_of_birth'] = iso;
+      map['date_of_birth'] = _formatDateForDb(dateOfBirth!);
     }
     return map;
   }
 }
+
+/// Fields allowed when updating an existing member.
+///
+/// Every field is included in the payload every time — this represents the
+/// full form state after a user hits "Save". A trimmed-empty string on an
+/// optional column is serialized as `null` so PostgREST clears the column.
+///
+/// [firstName] and [lastName] are required at the DB level so they are always
+/// written as non-empty trimmed values.
+class MemberUpdate {
+  const MemberUpdate({
+    required this.firstName,
+    required this.lastName,
+    this.preferredName,
+    this.phone,
+    this.email,
+    this.notes,
+    this.dateOfBirth,
+    this.sex,
+    this.priesthoodOffice,
+    required this.isActive,
+  });
+
+  final String firstName;
+  final String lastName;
+  final String? preferredName;
+  final String? phone;
+  final String? email;
+  final String? notes;
+  final DateTime? dateOfBirth;
+  final String? sex;
+  final String? priesthoodOffice;
+  final bool isActive;
+
+  /// Serialize for a PostgREST `update`. Unlike [NewMember.toInsert], optional
+  /// fields are always written — as `null` when trimmed-empty — so the user
+  /// can actually clear a previously-set value.
+  Map<String, dynamic> toUpdate() {
+    String? nullIfBlank(String? v) {
+      if (v == null) return null;
+      final t = v.trim();
+      return t.isEmpty ? null : t;
+    }
+
+    return <String, dynamic>{
+      'first_name': firstName.trim(),
+      'last_name': lastName.trim(),
+      'preferred_name': nullIfBlank(preferredName),
+      'phone': nullIfBlank(phone),
+      'email': nullIfBlank(email),
+      'notes': nullIfBlank(notes),
+      'sex': nullIfBlank(sex),
+      'priesthood_office': nullIfBlank(priesthoodOffice),
+      'date_of_birth':
+          dateOfBirth == null ? null : _formatDateForDb(dateOfBirth!),
+      'is_active': isActive,
+    };
+  }
+}
+
+/// Formats a [DateTime] as `YYYY-MM-DD` for a Postgres `date` column.
+String _formatDateForDb(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';

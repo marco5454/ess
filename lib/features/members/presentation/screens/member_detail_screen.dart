@@ -27,6 +27,15 @@ class MemberDetailScreen extends ConsumerWidget {
           data: (m) => m.displayName,
           orElse: () => 'Member',
         )),
+        actions: [
+          IconButton(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: memberAsync.hasValue
+                ? () => context.push(AppRoutes.memberEdit(memberId))
+                : null,
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -112,7 +121,39 @@ class _MemberInfoCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: rows,
+        children: [
+          if (!member.isActive)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.archive_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Archived — hidden from the main list',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ...rows,
+        ],
       ),
     );
   }

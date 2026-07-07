@@ -44,4 +44,19 @@ class MembersRepository {
         .single();
     return Member.fromMap(row);
   }
+
+  /// Update an existing member and return the persisted row.
+  ///
+  /// All editable columns are written — optional fields set to `null` in
+  /// [update] will be nulled in the database. Use [MemberUpdate.isActive] to
+  /// archive (`false`) or restore (`true`) a member.
+  Future<Member> updateMember(String id, MemberUpdate update) async {
+    final row = await _client
+        .from(_table)
+        .update(update.toUpdate())
+        .eq('id', id)
+        .select()
+        .single();
+    return Member.fromMap(row);
+  }
 }

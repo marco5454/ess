@@ -8,6 +8,7 @@ import '../../features/callings/presentation/screens/add_calling_screen.dart';
 import '../../features/callings/presentation/screens/calling_detail_screen.dart';
 import '../../features/callings/presentation/screens/record_calling_event_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
+import '../../features/members/presentation/screens/edit_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
 
@@ -21,6 +22,9 @@ class AppRoutes {
 
   /// Build the detail path for a specific member.
   static String memberDetail(String id) => '/members/$id';
+
+  /// Build the edit path for a specific member.
+  static String memberEdit(String id) => '/members/$id/edit';
 
   /// Build the add-calling path for a specific member.
   static String callingAddFor(String memberId) =>
@@ -88,6 +92,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/members/:id',
         builder: (_, state) =>
             MemberDetailScreen(memberId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/members/:id/edit',
+        builder: (_, state) =>
+            EditMemberScreen(memberId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/members/:id/callings/add',
