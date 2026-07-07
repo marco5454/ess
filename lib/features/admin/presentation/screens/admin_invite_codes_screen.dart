@@ -89,43 +89,11 @@ class AdminInviteCodesScreen extends ConsumerWidget {
 
   Future<void> _generate(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final noteController = TextEditingController();
     final note = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Generate invite code'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Optional note — who is this for?',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'e.g. first counselor',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(noteController.text),
-            child: const Text('Generate'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _GenerateInviteDialog(),
     );
 
-    noteController.dispose();
     if (note == null) return; // Cancelled.
 
     try {
@@ -307,4 +275,64 @@ String _formatDate(DateTime d) {
   final m = local.month.toString().padLeft(2, '0');
   final day = local.day.toString().padLeft(2, '0');
   return '$y-$m-$day';
+}
+
+/// Dialog that owns its own [TextEditingController] and disposes it safely.
+///
+/// Pops with the trimmed note text on Generate, or `null` on Cancel.
+class _GenerateInviteDialog extends StatefulWidget {
+  const _GenerateInviteDialog();
+
+  @override
+  State<_GenerateInviteDialog> createState() => _GenerateInviteDialogState();
+}
+
+class _GenerateInviteDialogState extends State<_GenerateInviteDialog> {
+  late final TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Generate invite code'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Optional note — who is this for?'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _noteController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'e.g. first counselor',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.of(context).pop(_noteController.text),
+          child: const Text('Generate'),
+        ),
+      ],
+    );
+  }
 }
