@@ -38,8 +38,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            icon: Icon(Icons.view_agenda_outlined),
+            selectedIcon: Icon(Icons.view_agenda),
             label: 'Summary',
           ),
           NavigationDestination(

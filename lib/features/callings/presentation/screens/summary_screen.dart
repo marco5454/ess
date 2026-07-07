@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/chapel_icon.dart';
+import '../../../../core/theme/state_chip.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
 import '../../../members/presentation/providers/members_providers.dart';
 import '../../domain/entities/calling_state.dart';
@@ -62,6 +64,10 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(12),
+          child: ChapelIcon(size: 24),
+        ),
         title: const Text('Ward summary'),
         actions: [
           if (isAdmin) ...[
@@ -328,7 +334,7 @@ class _CallingRow extends StatelessWidget {
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _StateChip(state: event.state),
+                StateChip(state: event.state),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right),
               ],
@@ -345,31 +351,5 @@ class _CallingRow extends StatelessWidget {
     final local = value.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');
     return '${local.year}-${two(local.month)}-${two(local.day)}';
-  }
-}
-
-class _StateChip extends StatelessWidget {
-  const _StateChip({required this.state});
-
-  final CallingState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = state.isTerminal
-        ? theme.colorScheme.surfaceContainerHighest
-        : theme.colorScheme.secondaryContainer;
-    final fg = state.isTerminal
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSecondaryContainer;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(state.label,
-          style: theme.textTheme.labelSmall?.copyWith(color: fg)),
-    );
   }
 }

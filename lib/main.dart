@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/chapel_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,10 +24,8 @@ class BishopricTrackerApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Bishopric Tracker',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: buildChapelTheme(),
       routerConfig: router,
     );
   }

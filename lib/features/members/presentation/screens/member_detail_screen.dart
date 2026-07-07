@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/state_chip.dart';
 import '../../../callings/domain/entities/calling_event.dart';
 import '../../../callings/presentation/providers/callings_providers.dart';
 import '../../domain/entities/member.dart';
@@ -232,7 +233,6 @@ class _CallingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final calling = item.calling;
     final event = item.latestEvent;
 
@@ -249,15 +249,8 @@ class _CallingTile extends StatelessWidget {
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Chip(
-                  label: Text(event.state.label),
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: theme.colorScheme.secondaryContainer,
-                  labelStyle: TextStyle(
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
-                  side: BorderSide.none,
-                ),
+                StateChip(state: event.state, dense: true),
+                const SizedBox(width: 4),
                 const Icon(Icons.chevron_right),
               ],
             ),

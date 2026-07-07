@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/state_chip.dart';
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
 import '../providers/callings_providers.dart';
@@ -181,19 +182,7 @@ class _CallingHeader extends StatelessWidget {
               Expanded(
                 child: Text(calling.title, style: theme.textTheme.titleLarge),
               ),
-              if (currentState != null)
-                Chip(
-                  label: Text(currentState.label),
-                  backgroundColor: currentState.isTerminal
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : theme.colorScheme.secondaryContainer,
-                  labelStyle: TextStyle(
-                    color: currentState.isTerminal
-                        ? theme.colorScheme.onSurfaceVariant
-                        : theme.colorScheme.onSecondaryContainer,
-                  ),
-                  side: BorderSide.none,
-                ),
+              if (currentState != null) StateChip(state: currentState),
             ],
           ),
           if (calling.organization != null &&

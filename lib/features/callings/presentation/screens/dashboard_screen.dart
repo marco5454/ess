@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/chapel_icon.dart';
+import '../../../../core/theme/chapel_theme.dart';
 import '../../domain/entities/calling_state.dart';
 import '../providers/callings_providers.dart';
 
@@ -22,7 +24,13 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final countsAsync = ref.watch(dashboardCountsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(12),
+          child: ChapelIcon(size: 24),
+        ),
+        title: const Text('Dashboard'),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           // Force resubscribe on all three upstream streams.
@@ -113,11 +121,10 @@ class _StaleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final hasStale = count > 0;
-    final bg = hasStale ? scheme.errorContainer : scheme.secondaryContainer;
-    final fg = hasStale ? scheme.onErrorContainer : scheme.onSecondaryContainer;
-    final icon = hasStale ? Icons.warning_amber_rounded : Icons.check_circle;
+    final bg = hasStale ? ChapelPalette.amberLight : ChapelPalette.sageLight;
+    final fg = hasStale ? ChapelPalette.amber : const Color(0xFF2E4A2E);
+    final icon = hasStale ? Icons.watch_later_outlined : Icons.check_circle;
 
     return Card(
       color: bg,
@@ -180,22 +187,35 @@ class _StateTile extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     // Empty tiles get a subdued treatment so the eye tracks non-zero
-    // counts. Terminal states also get a subdued neutral color to
-    // reinforce that they aren't actionable.
+    // counts. Pipeline states glow in gold, in-service states in sage,
+    // terminal states in a neutral paper tone.
     final isEmpty = count == 0;
-    final isTerminal = state.isTerminal;
 
     final Color bg;
     final Color fg;
     if (isEmpty) {
       bg = scheme.surfaceContainerHighest;
       fg = scheme.onSurfaceVariant;
-    } else if (isTerminal) {
-      bg = scheme.surfaceContainerHigh;
-      fg = scheme.onSurface;
     } else {
-      bg = scheme.primaryContainer;
-      fg = scheme.onPrimaryContainer;
+      switch (state) {
+        case CallingState.selected:
+        case CallingState.extended:
+        case CallingState.accepted:
+          bg = ChapelPalette.goldLight;
+          fg = ChapelPalette.goldDark;
+          break;
+        case CallingState.sustained:
+        case CallingState.setApart:
+        case CallingState.active:
+          bg = ChapelPalette.sageLight;
+          fg = const Color(0xFF2E4A2E);
+          break;
+        case CallingState.declined:
+        case CallingState.released:
+          bg = scheme.surfaceContainerHigh;
+          fg = scheme.onSurface;
+          break;
+      }
     }
 
     return Card(
