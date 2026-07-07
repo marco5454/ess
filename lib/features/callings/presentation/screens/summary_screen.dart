@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../admin/presentation/providers/admin_providers.dart';
 import '../../../members/presentation/providers/members_providers.dart';
 import '../../domain/entities/calling_state.dart';
 import '../providers/callings_providers.dart';
@@ -57,11 +58,18 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
   @override
   Widget build(BuildContext context) {
     final summaryAsync = ref.watch(callingSummaryProvider);
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ward summary'),
         actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+              tooltip: 'Invite codes',
+              onPressed: () => context.push(AppRoutes.adminInviteCodes),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
