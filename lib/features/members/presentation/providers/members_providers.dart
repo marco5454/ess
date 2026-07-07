@@ -19,6 +19,16 @@ final activeMembersProvider = FutureProvider<List<Member>>((ref) async {
   return repo.listMembers();
 });
 
+/// All members (including archived), alphabetized.
+///
+/// Used by ward-wide views like the summary screen where a calling may
+/// belong to a member who has since been archived — we still want to render
+/// their name rather than pretend the calling has no owner.
+final allMembersProvider = FutureProvider<List<Member>>((ref) async {
+  final repo = ref.watch(membersRepositoryProvider);
+  return repo.listMembers(activeOnly: false);
+});
+
 /// A single member by id. `.family` because it's parameterized.
 final memberByIdProvider = FutureProvider.family<Member, String>((
   ref,

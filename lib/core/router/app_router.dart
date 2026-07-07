@@ -11,7 +11,7 @@ import '../../features/callings/presentation/screens/record_calling_event_screen
 import '../../features/members/presentation/screens/add_member_screen.dart';
 import '../../features/members/presentation/screens/edit_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
-import '../../features/members/presentation/screens/members_list_screen.dart';
+import '../shell/home_shell.dart';
 
 /// Named routes.
 class AppRoutes {
@@ -87,7 +87,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.home,
-        builder: (_, _) => const MembersListScreen(),
+        builder: (_, _) => const HomeShell(),
       ),
       GoRoute(
         path: AppRoutes.memberAdd,

@@ -154,4 +154,45 @@ class CallingsRepository {
   Future<void> deleteCalling(String id) async {
     await _client.from(_callings).delete().eq('id', id);
   }
+
+  /// All callings (ward-wide) paired with each calling's most recent event.
+  ///
+  /// Used by the summary screen to build ward-level views. Two queries: pull
+  /// all callings, then all their events, then fold to latest-per-calling on
+  /// the client. Adequate for ward-scale data volumes; can be replaced with a
+  /// server-side view later if needed.
+  Future<List<CallingWithLatestEvent>> listAllWithLatestEvent() async {
+    final callingRows = await _client
+        .from(_callings)
+        .select()
+        .order('created_at', ascending: false);
+
+    final callings = (callingRows as List)
+        .cast<Map<String, dynamic>>()
+        .map(Calling.fromMap)
+        .toList(growable: false);
+
+    if (callings.isEmpty) return const [];
+
+    final callingIds = callings.map((c) => c.id).toList(growable: false);
+    final eventRows = await _client
+        .from(_events)
+        .select()
+        .inFilter('calling_id', callingIds)
+        .order('occurred_at', ascending: false)
+        .order('created_at', ascending: false);
+
+    final latestByCalling = <String, CallingEvent>{};
+    for (final row in (eventRows as List).cast<Map<String, dynamic>>()) {
+      final event = CallingEvent.fromMap(row);
+      latestByCalling.putIfAbsent(event.callingId, () => event);
+    }
+
+    return callings
+        .map((c) => CallingWithLatestEvent(
+              calling: c,
+              latestEvent: latestByCalling[c.id],
+            ))
+        .toList(growable: false);
+  }
 }
