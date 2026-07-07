@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../domain/entities/app_user.dart';
 import '../../domain/entities/invite_code.dart';
 
 /// Data-layer facade over the admin RPCs.
@@ -47,5 +48,14 @@ class AdminRepository {
       params: {'code_input': code},
     );
     return result == true;
+  }
+
+  /// All registered application users, most recently created first.
+  Future<List<AppUser>> listUsers() async {
+    final rows = await _client.rpc('list_users');
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(AppUser.fromMap)
+        .toList(growable: false);
   }
 }

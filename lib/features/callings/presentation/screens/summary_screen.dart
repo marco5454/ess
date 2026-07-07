@@ -64,12 +64,18 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
       appBar: AppBar(
         title: const Text('Ward summary'),
         actions: [
-          if (isAdmin)
+          if (isAdmin) ...[
+            IconButton(
+              icon: const Icon(Icons.people_alt_outlined),
+              tooltip: 'Users',
+              onPressed: () => context.push(AppRoutes.adminUsers),
+            ),
             IconButton(
               icon: const Icon(Icons.admin_panel_settings_outlined),
               tooltip: 'Invite codes',
               onPressed: () => context.push(AppRoutes.adminInviteCodes),
             ),
+          ],
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',

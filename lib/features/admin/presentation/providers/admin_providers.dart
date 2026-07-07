@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../auth/presentation/providers/auth_state_provider.dart';
 import '../../data/repositories/admin_repository.dart';
+import '../../domain/entities/app_user.dart';
 import '../../domain/entities/invite_code.dart';
 
 /// Provides the singleton [AdminRepository].
@@ -29,4 +30,10 @@ final isAdminProvider = FutureProvider<bool>((ref) async {
 final inviteCodesProvider = FutureProvider<List<InviteCode>>((ref) async {
   final repo = ref.watch(adminRepositoryProvider);
   return repo.listInviteCodes();
+});
+
+/// The list of all registered users, newest first. Admin-only.
+final usersProvider = FutureProvider<List<AppUser>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return repo.listUsers();
 });
