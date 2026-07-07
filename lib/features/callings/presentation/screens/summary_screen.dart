@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../members/presentation/providers/members_providers.dart';
 import '../../domain/entities/calling_state.dart';
 import '../providers/callings_providers.dart';
 
@@ -76,7 +77,11 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(callingSummaryProvider),
+        onRefresh: () async {
+          ref.invalidate(allMembersStreamProvider);
+          ref.invalidate(allCallingsStreamProvider);
+          ref.invalidate(allEventsStreamProvider);
+        },
         child: summaryAsync.when(
           data: (rows) => TabBarView(
             controller: _tabController,

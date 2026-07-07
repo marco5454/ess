@@ -104,7 +104,8 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(activeMembersProvider),
+        onRefresh: () async =>
+            ref.invalidate(allMembersStreamProvider),
         child: membersAsync.when(
           data: (members) {
             if (members.isEmpty) {

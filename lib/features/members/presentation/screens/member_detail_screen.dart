@@ -39,8 +39,9 @@ class MemberDetailScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(memberByIdProvider(memberId));
-          ref.invalidate(callingsForMemberProvider(memberId));
+          ref.invalidate(allMembersStreamProvider);
+          ref.invalidate(allCallingsStreamProvider);
+          ref.invalidate(allEventsStreamProvider);
         },
         child: memberAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),

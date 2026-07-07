@@ -195,4 +195,37 @@ class CallingsRepository {
             ))
         .toList(growable: false);
   }
+
+  /// Live stream of every calling row (ward-wide).
+  ///
+  /// RLS gates who sees what. Ordered newest-first client-side to match
+  /// [listCallingsForMember] / [listAllWithLatestEvent].
+  Stream<List<Calling>> watchAllCallings() {
+    return _client
+        .from(_callings)
+        .stream(primaryKey: ['id'])
+        .map(
+          (rows) => rows.map(Calling.fromMap).toList(growable: false)
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
+  }
+
+  /// Live stream of every calling_events row (ward-wide).
+  ///
+  /// Ordered newest-first (`occurred_at desc, created_at desc`) client-side —
+  /// matches the "current state = events.first" convention used across the
+  /// app. Consumers filter by `calling_id` client-side.
+  Stream<List<CallingEvent>> watchAllEvents() {
+    return _client
+        .from(_events)
+        .stream(primaryKey: ['id'])
+        .map(
+          (rows) => rows.map(CallingEvent.fromMap).toList(growable: false)
+            ..sort((a, b) {
+              final byOccurred = b.occurredAt.compareTo(a.occurredAt);
+              if (byOccurred != 0) return byOccurred;
+              return b.createdAt.compareTo(a.createdAt);
+            }),
+        );
+  }
 }

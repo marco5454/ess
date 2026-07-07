@@ -54,8 +54,8 @@ class CallingDetailScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(callingByIdProvider(callingId));
-          ref.invalidate(eventsForCallingProvider(callingId));
+          ref.invalidate(allCallingsStreamProvider);
+          ref.invalidate(allEventsStreamProvider);
         },
         child: callingAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),

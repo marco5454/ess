@@ -35,6 +35,31 @@ class MembersRepository {
     return Member.fromMap(row);
   }
 
+  /// Live stream of every member row. RLS gates who can see what; the app's
+  /// current policy is "any authenticated user sees everything".
+  ///
+  /// The stream emits the full table snapshot on subscribe and whenever any
+  /// row changes. Callers filter / sort client-side. Ordering here matches
+  /// what [listMembers] returned (last name then first name).
+  Stream<List<Member>> watchMembers() {
+    return _client
+        .from(_table)
+        .stream(primaryKey: ['id'])
+        .order('last_name')
+        .map(
+          (rows) => rows.map(Member.fromMap).toList(growable: false)
+            ..sort((a, b) {
+              final byLast = a.lastName.toLowerCase().compareTo(
+                b.lastName.toLowerCase(),
+              );
+              if (byLast != 0) return byLast;
+              return a.firstName.toLowerCase().compareTo(
+                b.firstName.toLowerCase(),
+              );
+            }),
+        );
+  }
+
   /// Insert a new member and return the persisted row.
   Future<Member> addMember(NewMember input) async {
     final row = await _client
