@@ -67,3 +67,33 @@ class NewCalling {
     return map;
   }
 }
+
+/// Fields allowed when editing an existing calling.
+///
+/// Unlike [NewCalling], all optional fields are always written on save: an
+/// empty string becomes `null` so the user can clear a value that was
+/// previously set.
+class CallingUpdate {
+  const CallingUpdate({
+    required this.title,
+    this.organization,
+    this.notes,
+  });
+
+  final String title;
+  final String? organization;
+  final String? notes;
+
+  Map<String, dynamic> toUpdate() {
+    String? nullIfBlank(String? v) {
+      final t = v?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
+    return <String, dynamic>{
+      'title': title.trim(),
+      'organization': nullIfBlank(organization),
+      'notes': nullIfBlank(notes),
+    };
+  }
+}

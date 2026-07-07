@@ -87,6 +87,17 @@ class CallingsRepository {
     return Calling.fromMap(row);
   }
 
+  /// Update a calling's descriptive fields. Does not touch state / events.
+  Future<Calling> updateCalling(String id, CallingUpdate update) async {
+    final row = await _client
+        .from(_callings)
+        .update(update.toUpdate())
+        .eq('id', id)
+        .select()
+        .single();
+    return Calling.fromMap(row);
+  }
+
   /// All events for a calling, newest first.
   ///
   /// Ordered by `occurred_at` desc, tie-broken by `created_at` desc — matches

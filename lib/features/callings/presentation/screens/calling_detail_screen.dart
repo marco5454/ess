@@ -30,6 +30,16 @@ class CallingDetailScreen extends ConsumerWidget {
           data: (c) => c.title,
           orElse: () => 'Calling',
         )),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit',
+            onPressed: callingAsync.hasValue
+                ? () => context
+                    .push(AppRoutes.callingEdit(memberId, callingId))
+                : null,
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {

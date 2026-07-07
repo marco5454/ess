@@ -6,6 +6,7 @@ import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/callings/presentation/screens/add_calling_screen.dart';
 import '../../features/callings/presentation/screens/calling_detail_screen.dart';
+import '../../features/callings/presentation/screens/edit_calling_screen.dart';
 import '../../features/callings/presentation/screens/record_calling_event_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
 import '../../features/members/presentation/screens/edit_member_screen.dart';
@@ -33,6 +34,10 @@ class AppRoutes {
   /// Build the calling-detail path.
   static String callingDetail(String memberId, String callingId) =>
       '/members/$memberId/callings/$callingId';
+
+  /// Build the edit path for a specific calling.
+  static String callingEdit(String memberId, String callingId) =>
+      '/members/$memberId/callings/$callingId/edit';
 
   /// Build the record-state path for a calling.
   static String callingRecordFor(String memberId, String callingId) =>
@@ -106,6 +111,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/members/:memberId/callings/:callingId',
         builder: (_, state) => CallingDetailScreen(
+          memberId: state.pathParameters['memberId']!,
+          callingId: state.pathParameters['callingId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/members/:memberId/callings/:callingId/edit',
+        builder: (_, state) => EditCallingScreen(
           memberId: state.pathParameters['memberId']!,
           callingId: state.pathParameters['callingId']!,
         ),
