@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/callings/presentation/screens/dashboard_screen.dart';
 import '../../features/callings/presentation/screens/summary_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
 
 /// Root shell for the authenticated app.
 ///
-/// Hosts a bottom [NavigationBar] with two tabs — Summary and Members —
-/// inside an [IndexedStack] so each tab preserves its state (scroll
-/// position, search query) when the user switches away and back. Each tab
-/// screen owns its own [Scaffold] / [AppBar] so it can supply tab-specific
-/// actions, FABs, and search fields.
+/// Hosts a bottom [NavigationBar] with three tabs — Summary, Dashboard,
+/// and Members — inside an [IndexedStack] so each tab preserves its state
+/// (scroll position, search query) when the user switches away and back.
+/// Each tab screen owns its own [Scaffold] / [AppBar] so it can supply
+/// tab-specific actions, FABs, and search fields.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -28,6 +29,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         index: _index,
         children: const [
           SummaryScreen(),
+          DashboardScreen(),
           MembersListScreen(),
         ],
       ),
@@ -39,6 +41,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Summary',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Dashboard',
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outline),

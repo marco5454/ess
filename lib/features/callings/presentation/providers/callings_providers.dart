@@ -6,6 +6,7 @@ import '../../../members/presentation/providers/members_providers.dart';
 import '../../data/repositories/callings_repository.dart';
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
+import '../../domain/entities/calling_state.dart';
 
 /// Provides the singleton [CallingsRepository].
 final callingsRepositoryProvider = Provider<CallingsRepository>((ref) {
@@ -153,4 +154,81 @@ final callingSummaryProvider =
             ))
         .toList(growable: false),
   );
+});
+
+/// Aggregate counts for the dashboard.
+///
+/// [byState] holds the current count for every [CallingState] (defaults
+/// to 0 when nothing is in that state). [staleInPipeline] counts callings
+/// whose latest event is `selected` or `extended` and older than the
+/// stale threshold (see [dashboardStaleThreshold]).
+///
+/// Callings with no events at all are not counted anywhere. In practice
+/// every calling has at least one event (the initial `selected` written
+/// at creation time), but we don't rely on that invariant here.
+class DashboardCounts {
+  const DashboardCounts({
+    required this.byState,
+    required this.staleInPipeline,
+    required this.totalWithState,
+  });
+
+  final Map<CallingState, int> byState;
+  final int staleInPipeline;
+
+  /// The number of callings that have any recorded state (denominator for
+  /// percentages, and a sanity check).
+  final int totalWithState;
+}
+
+/// How old a pipeline (selected / extended) event has to be before the
+/// dashboard flags it as stale. Matches the threshold used by
+/// SummaryScreen's "Needs attention" tab.
+const Duration dashboardStaleThreshold = Duration(days: 14);
+
+/// Live dashboard counts derived from [callingSummaryProvider].
+final dashboardCountsProvider = Provider<AsyncValue<DashboardCounts>>((ref) {
+  final summaryAsync = ref.watch(callingSummaryProvider);
+  return summaryAsync.whenData((rows) {
+    final counts = {for (final s in CallingState.values) s: 0};
+    var stale = 0;
+    var total = 0;
+    final now = DateTime.now();
+
+    for (final row in rows) {
+      final event = row.latestEvent;
+      if (event == null) continue;
+      total += 1;
+      counts[event.state] = counts[event.state]! + 1;
+
+      final isPipeline = event.state == CallingState.selected ||
+          event.state == CallingState.extended;
+      if (isPipeline &&
+          now.difference(event.occurredAt) >= dashboardStaleThreshold) {
+        stale += 1;
+      }
+    }
+    return DashboardCounts(
+      byState: counts,
+      staleInPipeline: stale,
+      totalWithState: total,
+    );
+  });
+});
+
+/// All callings currently in a given state, joined with their member.
+///
+/// Rows are sorted by `occurredAt` ascending (oldest transitions first) so
+/// the drill-down naturally surfaces the stalest cases at the top.
+final callingsInStateProvider = Provider.family<
+    AsyncValue<List<CallingSummaryRow>>, CallingState>((ref, state) {
+  final summaryAsync = ref.watch(callingSummaryProvider);
+  return summaryAsync.whenData((rows) {
+    final matches = rows
+        .where((r) => r.latestEvent?.state == state)
+        .toList(growable: false);
+    matches.sort((a, b) =>
+        a.latestEvent!.occurredAt.compareTo(b.latestEvent!.occurredAt));
+    return matches;
+  });
 });

@@ -6,8 +6,10 @@ import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
+import '../../features/callings/domain/entities/calling_state.dart';
 import '../../features/callings/presentation/screens/add_calling_screen.dart';
 import '../../features/callings/presentation/screens/calling_detail_screen.dart';
+import '../../features/callings/presentation/screens/callings_by_state_screen.dart';
 import '../../features/callings/presentation/screens/edit_calling_screen.dart';
 import '../../features/callings/presentation/screens/record_calling_event_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
@@ -46,6 +48,11 @@ class AppRoutes {
   /// Build the record-state path for a calling.
   static String callingRecordFor(String memberId, String callingId) =>
       '/members/$memberId/callings/$callingId/record';
+
+  /// Build the drill-down list path for callings currently in [wireState].
+  /// Accepts the Postgres wire value (e.g. `set_apart`, not `setApart`).
+  static String callingsInState(String wireState) =>
+      '/callings/state/$wireState';
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
@@ -133,6 +140,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           memberId: state.pathParameters['memberId']!,
           callingId: state.pathParameters['callingId']!,
         ),
+      ),
+      GoRoute(
+        path: '/callings/state/:state',
+        builder: (_, state) {
+          final wire = state.pathParameters['state']!;
+          return CallingsByStateScreen(
+            state: CallingState.fromWire(wire),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.login,
