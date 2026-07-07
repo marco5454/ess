@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
-import '../../../../core/router/app_router.dart';
 
 /// Phase 1 login screen shell.
 ///
@@ -92,13 +90,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Sign in'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _isSubmitting
-                  ? null
-                  : () => context.push(AppRoutes.register),
-              child: const Text('Create account'),
             ),
           ],
         ),

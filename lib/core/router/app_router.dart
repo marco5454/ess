@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
 import '../../features/callings/presentation/screens/add_calling_screen.dart';
@@ -22,7 +21,6 @@ class AppRoutes {
 
   static const home = '/';
   static const login = '/login';
-  static const register = '/register';
   static const adminInviteCodes = '/admin/invite-codes';
   static const adminUsers = '/admin/users';
   static const memberAdd = '/members/add';
@@ -85,8 +83,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthenticated = ref.read(isAuthenticatedProvider);
       final location = state.matchedLocation;
-      final isPublic =
-          location == AppRoutes.login || location == AppRoutes.register;
+      final isPublic = location == AppRoutes.login;
 
       if (!isAuthenticated && !isPublic) return AppRoutes.login;
       if (isAuthenticated && isPublic) return AppRoutes.home;
@@ -140,10 +137,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (_, _) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.register,
-        builder: (_, _) => const RegisterScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminInviteCodes,
