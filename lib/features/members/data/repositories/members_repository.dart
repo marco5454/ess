@@ -29,6 +29,12 @@ class MembersRepository {
         .toList(growable: false);
   }
 
+  /// Fetch a single member by id. Throws if the row is missing.
+  Future<Member> getMember(String id) async {
+    final row = await _client.from(_table).select().eq('id', id).single();
+    return Member.fromMap(row);
+  }
+
   /// Insert a new member and return the persisted row.
   Future<Member> addMember(NewMember input) async {
     final row = await _client

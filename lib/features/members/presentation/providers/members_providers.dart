@@ -18,3 +18,12 @@ final activeMembersProvider = FutureProvider<List<Member>>((ref) async {
   final repo = ref.watch(membersRepositoryProvider);
   return repo.listMembers();
 });
+
+/// A single member by id. `.family` because it's parameterized.
+final memberByIdProvider = FutureProvider.family<Member, String>((
+  ref,
+  id,
+) async {
+  final repo = ref.watch(membersRepositoryProvider);
+  return repo.getMember(id);
+});

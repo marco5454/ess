@@ -66,6 +66,8 @@ class MembersListScreen extends ConsumerWidget {
                   subtitle: subtitleParts.isEmpty
                       ? null
                       : Text(subtitleParts.join(' • ')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(AppRoutes.memberDetail(m.id)),
                 );
               },
             );

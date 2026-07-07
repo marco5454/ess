@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/callings/presentation/screens/add_calling_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
+import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
 
 /// Named routes.
@@ -14,6 +16,13 @@ class AppRoutes {
   static const home = '/';
   static const login = '/login';
   static const memberAdd = '/members/add';
+
+  /// Build the detail path for a specific member.
+  static String memberDetail(String id) => '/members/$id';
+
+  /// Build the add-calling path for a specific member.
+  static String callingAddFor(String memberId) =>
+      '/members/$memberId/callings/add';
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
@@ -64,6 +73,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.memberAdd,
         builder: (_, _) => const AddMemberScreen(),
+      ),
+      GoRoute(
+        path: '/members/:id',
+        builder: (_, state) =>
+            MemberDetailScreen(memberId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/members/:id/callings/add',
+        builder: (_, state) =>
+            AddCallingScreen(memberId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: AppRoutes.login,
