@@ -194,6 +194,7 @@ class _EventTimeline extends StatelessWidget {
             for (var i = 0; i < events.length; i++)
               _EventTile(
                 event: events[i],
+                previous: i + 1 < events.length ? events[i + 1] : null,
                 isLatest: i == 0,
                 isOnlyEvent: events.length == 1,
                 memberId: memberId,
@@ -209,6 +210,7 @@ class _EventTimeline extends StatelessWidget {
 class _EventTile extends ConsumerWidget {
   const _EventTile({
     required this.event,
+    required this.previous,
     required this.isLatest,
     required this.isOnlyEvent,
     required this.memberId,
@@ -216,6 +218,10 @@ class _EventTile extends ConsumerWidget {
   });
 
   final CallingEvent event;
+
+  /// The event immediately preceding this one in time (chronologically older),
+  /// or `null` if this is the first event ever recorded on the calling.
+  final CallingEvent? previous;
   final bool isLatest;
   final bool isOnlyEvent;
   final String memberId;
@@ -224,6 +230,55 @@ class _EventTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isInitial = previous == null;
+
+    final Widget titleWidget;
+    if (isInitial) {
+      titleWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'Initial',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(event.state.label),
+        ],
+      );
+    } else {
+      titleWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            previous!.state.label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            Icons.arrow_forward,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            event.state.label,
+            style: theme.textTheme.titleMedium,
+          ),
+        ],
+      );
+    }
+
     return ListTile(
       leading: Icon(
         Icons.circle,
@@ -232,7 +287,7 @@ class _EventTile extends ConsumerWidget {
             ? theme.colorScheme.outline
             : theme.colorScheme.primary,
       ),
-      title: Text(event.state.label),
+      title: titleWidget,
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
