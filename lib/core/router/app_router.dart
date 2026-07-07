@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/members/presentation/screens/add_member_screen.dart';
+import '../../features/members/presentation/screens/members_list_screen.dart';
 
 /// Named routes.
 class AppRoutes {
@@ -12,6 +13,7 @@ class AppRoutes {
 
   static const home = '/';
   static const login = '/login';
+  static const memberAdd = '/members/add';
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
@@ -57,7 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.home,
-        builder: (_, _) => const HomeScreen(),
+        builder: (_, _) => const MembersListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.memberAdd,
+        builder: (_, _) => const AddMemberScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,
