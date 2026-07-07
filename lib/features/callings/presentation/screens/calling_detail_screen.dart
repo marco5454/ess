@@ -74,7 +74,11 @@ class CallingDetailScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              _EventTimeline(eventsAsync: eventsAsync),
+              _EventTimeline(
+                eventsAsync: eventsAsync,
+                memberId: memberId,
+                callingId: callingId,
+              ),
             ],
           ),
         ),
@@ -157,9 +161,15 @@ class _CallingHeader extends StatelessWidget {
 }
 
 class _EventTimeline extends StatelessWidget {
-  const _EventTimeline({required this.eventsAsync});
+  const _EventTimeline({
+    required this.eventsAsync,
+    required this.memberId,
+    required this.callingId,
+  });
 
   final AsyncValue<List<CallingEvent>> eventsAsync;
+  final String memberId;
+  final String callingId;
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +191,14 @@ class _EventTimeline extends StatelessWidget {
         }
         return Column(
           children: [
-            for (final e in events) _EventTile(event: e),
+            for (var i = 0; i < events.length; i++)
+              _EventTile(
+                event: events[i],
+                isLatest: i == 0,
+                isOnlyEvent: events.length == 1,
+                memberId: memberId,
+                callingId: callingId,
+              ),
           ],
         );
       },
@@ -189,13 +206,23 @@ class _EventTimeline extends StatelessWidget {
   }
 }
 
-class _EventTile extends StatelessWidget {
-  const _EventTile({required this.event});
+class _EventTile extends ConsumerWidget {
+  const _EventTile({
+    required this.event,
+    required this.isLatest,
+    required this.isOnlyEvent,
+    required this.memberId,
+    required this.callingId,
+  });
 
   final CallingEvent event;
+  final bool isLatest;
+  final bool isOnlyEvent;
+  final String memberId;
+  final String callingId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return ListTile(
       leading: Icon(
@@ -217,7 +244,55 @@ class _EventTile extends StatelessWidget {
             ),
         ],
       ),
+      trailing: isLatest
+          ? IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete this event',
+              onPressed: () => _confirmAndDelete(context, ref),
+            )
+          : null,
     );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this event?'),
+        content: Text(
+          isOnlyEvent
+              ? 'This is the only event on this calling. Deleting it will '
+                  'leave the calling with no recorded state.'
+              : 'This will remove the "${event.state.label}" event. The '
+                  'previous event will become the current state.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(callingsRepositoryProvider).deleteEvent(event.id);
+      ref.invalidate(eventsForCallingProvider(callingId));
+      ref.invalidate(callingsForMemberProvider(memberId));
+      messenger.showSnackBar(const SnackBar(content: Text('Event deleted')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
   }
 
   static String _fmtDateTime(DateTime d) {

@@ -139,4 +139,13 @@ class CallingsRepository {
         await _client.from(_events).insert(payload).select().single();
     return CallingEvent.fromMap(row);
   }
+
+  /// Delete a single event by id.
+  ///
+  /// Used to undo a wrongly-recorded state transition. Callers should only
+  /// invoke this for the latest event on a calling; the repo itself does not
+  /// enforce that constraint.
+  Future<void> deleteEvent(String id) async {
+    await _client.from(_events).delete().eq('id', id);
+  }
 }
