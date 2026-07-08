@@ -247,3 +247,28 @@ final callingsInStateProvider = Provider.family<
     return matches;
   });
 });
+
+/// Distinct organization names already used across ward callings.
+///
+/// Feeds the "suggested organization" autocomplete on the add/edit calling
+/// screens so users pick an existing spelling instead of coining a new one —
+/// which keeps the Summary's group-by-organization view coherent.
+///
+/// Deduplication is case-insensitive. When variants exist (e.g. both
+/// "Elders Quorum" and "elders quorum" have been entered historically), the
+/// first casing encountered wins; that's good enough for a suggestion list.
+/// Blank/null organizations are excluded. Result is sorted case-insensitively.
+final distinctOrganizationsProvider = Provider<AsyncValue<List<String>>>((ref) {
+  final callingsAsync = ref.watch(allCallingsStreamProvider);
+  return callingsAsync.whenData((callings) {
+    final seen = <String, String>{}; // lower-case key → original casing
+    for (final c in callings) {
+      final raw = c.organization?.trim();
+      if (raw == null || raw.isEmpty) continue;
+      seen.putIfAbsent(raw.toLowerCase(), () => raw);
+    }
+    final out = seen.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return out;
+  });
+});

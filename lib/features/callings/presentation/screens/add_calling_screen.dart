@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/calling.dart';
 import '../providers/callings_providers.dart';
+import '../widgets/organization_field.dart';
 
 /// Form for creating a new calling for a given member.
 ///
@@ -92,14 +93,7 @@ class _AddCallingScreenState extends ConsumerState<AddCallingScreen> {
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _organization,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Organization',
-                  hintText: 'e.g. Elders Quorum, Primary, Ward',
-                ),
-              ),
+              OrganizationField(controller: _organization),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _notes,
