@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../sync/connectivity_service.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
 import '../../features/callings/domain/entities/calling_state.dart';
@@ -56,21 +57,31 @@ class AppRoutes {
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
-/// to re-evaluate its redirect logic whenever auth state changes.
+/// to re-evaluate its redirect logic whenever auth or connectivity state
+/// changes. Connectivity is watched too because
+/// [isAuthenticatedProvider] can flip when the network returns and we can
+/// finally confirm whether the session is really gone.
 class _RiverpodRouterRefresh extends ChangeNotifier {
   _RiverpodRouterRefresh(Ref ref) {
-    _sub = ref.listen<AsyncValue>(
+    _authSub = ref.listen<AsyncValue>(
       authStateProvider,
+      (_, _) => notifyListeners(),
+      fireImmediately: false,
+    );
+    _connSub = ref.listen<AsyncValue<bool>>(
+      connectivityStatusProvider,
       (_, _) => notifyListeners(),
       fireImmediately: false,
     );
   }
 
-  late final ProviderSubscription<AsyncValue> _sub;
+  late final ProviderSubscription<AsyncValue> _authSub;
+  late final ProviderSubscription<AsyncValue<bool>> _connSub;
 
   @override
   void dispose() {
-    _sub.close();
+    _authSub.close();
+    _connSub.close();
     super.dispose();
   }
 }
