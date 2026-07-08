@@ -7,7 +7,7 @@ import 'motion.dart';
 /// user perceives layout stability across the load → data transition.
 
 /// Skeleton for the members list: alternating rows with an avatar,
-/// two lines of text, and a right-hand chevron placeholder.
+/// two lines of text, and a trailing chevron / count-badge placeholder.
 class MembersListSkeleton extends StatelessWidget {
   const MembersListSkeleton({super.key, this.rowCount = 8});
 
@@ -24,7 +24,7 @@ class MembersListSkeleton extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              SkeletonCircle(size: 36),
+              SkeletonCircle(size: 40),
               SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -32,11 +32,13 @@ class MembersListSkeleton extends StatelessWidget {
                   children: [
                     SkeletonBox(width: 160, height: 14),
                     SizedBox(height: 8),
-                    SkeletonBox(width: 100, height: 10),
+                    SkeletonBox(width: 200, height: 10),
                   ],
                 ),
               ),
               SizedBox(width: 12),
+              SkeletonBox(width: 24, height: 16, radius: 999),
+              SizedBox(width: 8),
               SkeletonBox(width: 16, height: 16, radius: 4),
             ],
           ),

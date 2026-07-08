@@ -350,3 +350,48 @@ final recentActivityProvider =
   }
   return AsyncValue.data(rows);
 });
+
+/// The set of calling states that mean the member is currently serving.
+///
+/// Kept in one place so the Members list, Summary "By organization" view,
+/// and any future "who's serving?" view stay in sync. Terminal states
+/// (`declined`, `released`) and pipeline states (`selected`, `extended`)
+/// are intentionally excluded — a calling that hasn't been accepted yet
+/// isn't "in service" from the ward's point of view.
+const Set<CallingState> memberInServiceStates = {
+  CallingState.accepted,
+  CallingState.sustained,
+  CallingState.setApart,
+  CallingState.active,
+};
+
+/// Live map of `memberId → currently-in-service callings for that member`.
+///
+/// Built as a single provider (instead of a family, one per member id) so
+/// the Members list can annotate every row with a lookup rather than
+/// spinning up N subscriptions. One join, one rebuild whenever the
+/// callings or events stream ticks.
+///
+/// The returned map only contains members who have at least one in-service
+/// calling — callers should treat a missing key as "no callings", not "no
+/// data". Callings inside each list are sorted by title (case-insensitive)
+/// so the UI can render them stably.
+final membersWithCallingsProvider =
+    Provider<AsyncValue<Map<String, List<Calling>>>>((ref) {
+  final callingsAsync = ref.watch(allCallingsStreamProvider);
+  final eventsAsync = ref.watch(allEventsStreamProvider);
+  final joined = _joinCallingsWithLatestEvent(callingsAsync, eventsAsync);
+  return joined.whenData((list) {
+    final byMember = <String, List<Calling>>{};
+    for (final row in list) {
+      final state = row.latestEvent?.state;
+      if (state == null || !memberInServiceStates.contains(state)) continue;
+      byMember.putIfAbsent(row.calling.memberId, () => []).add(row.calling);
+    }
+    for (final callings in byMember.values) {
+      callings.sort((a, b) =>
+          a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    }
+    return byMember;
+  });
+});
