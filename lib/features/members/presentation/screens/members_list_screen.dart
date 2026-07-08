@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/config/supabase_config.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/sync/sync_service.dart';
 import '../../domain/entities/member.dart';
 import '../providers/members_providers.dart';
 
@@ -63,7 +63,7 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => supabase.auth.signOut(),
+            onPressed: () => performSignOut(ref),
           ),
         ],
         bottom: PreferredSize(

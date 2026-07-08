@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/config/supabase_config.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/chapel_icon.dart';
 import '../../../../core/theme/state_chip.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
@@ -85,7 +85,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => supabase.auth.signOut(),
+            onPressed: () => performSignOut(ref),
           ),
         ],
         bottom: TabBar(

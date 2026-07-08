@@ -254,6 +254,35 @@ class SyncService {
       }
     }
   }
+
+  /// Sign the user out cleanly, wiping local state.
+  ///
+  /// Order of operations matters:
+  ///   1. Tear down realtime channels so no incoming rows write into DAOs
+  ///      after we've already dropped their tables.
+  ///   2. Delete outbox rows first — any pending mutations belong to the
+  ///      signed-out user and would be pushed under a stale JWT if we ran
+  ///      a drain in between.
+  ///   3. Delete cached rows in FK-safe order (events → callings → members).
+  ///   4. Sign out of Supabase. Catches errors so a network failure at the
+  ///      end of sign-out (device already offline) doesn't leave local
+  ///      state half-cleared.
+  ///
+  /// After this returns, the caller should also flip the sticky offline-
+  /// authed flag; see [performSignOut] which wraps both steps.
+  Future<void> signOutAndWipeLocal() async {
+    await stopRealtime();
+    await outboxDao.deleteAll();
+    await callingsDao.deleteAll();
+    await membersDao.deleteAll();
+    try {
+      await client.auth.signOut();
+    } catch (_) {
+      // Best-effort. Even if the server round-trip fails, local state is
+      // already cleared and the sticky flag reset below will send the
+      // router to /login.
+    }
+  }
 }
 
 /// Riverpod handle for [SyncService].
@@ -337,3 +366,24 @@ void _tearDown(Ref ref) {
 
 /// Public re-export so `main.dart` can watch it to activate the listener.
 final seedOnLoginProvider = _syncLifecycleProvider;
+
+/// Cleanly sign the current user out.
+///
+/// Wipes local Drift caches + outbox, calls `supabase.auth.signOut()`, and
+/// resets the sticky offline-authed flag so the router redirect flips to
+/// `/login` on the next refresh.
+///
+/// Call from any Riverpod-aware widget or provider; the two AppBar
+/// sign-out buttons are the primary call sites.
+Future<void> performSignOut(WidgetRef ref) async {
+  final sync = ref.read(syncServiceProvider);
+  await sync.signOutAndWipeLocal();
+  markSignedOut(ref);
+}
+
+/// [Ref]-based variant of [performSignOut] for use inside providers/services.
+Future<void> performSignOutFromRef(Ref ref) async {
+  final sync = ref.read(syncServiceProvider);
+  await sync.signOutAndWipeLocal();
+  markSignedOutFromRef(ref);
+}
