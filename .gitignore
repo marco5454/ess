@@ -12,6 +12,21 @@
 .swiftpm/
 migrate_working_dir/
 
+# Built APKs / IPAs shipped to devices — kept out of git so we don't
+# bloat the repo. The build folder is source-of-truth; releases/ is
+# just a local staging area for side-loading.
+releases/
+*.apk
+*.aab
+
+# Android release signing — the keystore and its credentials must
+# never be committed. If either is lost, upgrades from this signing
+# identity are impossible; treat like a private key.
+android/key.properties
+android/upload-keystore.jks
+android/*.jks
+android/*.keystore
+
 # IntelliJ related
 *.iml
 *.ipr
