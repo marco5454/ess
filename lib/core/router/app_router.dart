@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../sync/connectivity_service.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
 import '../../features/callings/domain/entities/calling_state.dart';
@@ -16,7 +15,64 @@ import '../../features/callings/presentation/screens/record_calling_event_screen
 import '../../features/members/presentation/screens/add_member_screen.dart';
 import '../../features/members/presentation/screens/edit_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
+import '../motion/motion.dart';
 import '../shell/home_shell.dart';
+
+/// Standard push-style transition: cross-fade + a short slide from the
+/// right. Used for detail / secondary screens.
+CustomTransitionPage<T> _slidePage<T>({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: MotionDurations.medium,
+    reverseTransitionDuration: MotionDurations.medium,
+    transitionsBuilder: (context, animation, secondary, child) {
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: MotionCurves.enter,
+        reverseCurve: MotionCurves.exit,
+      );
+      final slide = Tween<Offset>(
+        begin: const Offset(0.08, 0),
+        end: Offset.zero,
+      ).animate(fade);
+      return FadeTransition(
+        opacity: fade,
+        child: SlideTransition(position: slide, child: child),
+      );
+    },
+  );
+}
+
+/// Root-surface transition: pure cross-fade with a subtle scale-in. Used
+/// for the login screen and home shell — no directional metaphor because
+/// there is no "back stack" to imply.
+CustomTransitionPage<T> _rootPage<T>({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: MotionDurations.medium,
+    reverseTransitionDuration: MotionDurations.medium,
+    transitionsBuilder: (context, animation, secondary, child) {
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: MotionCurves.enter,
+        reverseCurve: MotionCurves.exit,
+      );
+      final scale = Tween<double>(begin: 0.98, end: 1.0).animate(fade);
+      return FadeTransition(
+        opacity: fade,
+        child: ScaleTransition(scale: scale, child: child),
+      );
+    },
+  );
+}
 
 /// Named routes.
 class AppRoutes {
@@ -57,31 +113,29 @@ class AppRoutes {
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
-/// to re-evaluate its redirect logic whenever auth or connectivity state
-/// changes. Connectivity is watched too because
-/// [isAuthenticatedProvider] can flip when the network returns and we can
-/// finally confirm whether the session is really gone.
+/// to re-evaluate its redirect logic whenever the authentication verdict
+/// changes.
+///
+/// We listen directly to [isAuthenticatedProvider] (the exact value the
+/// redirect reads) rather than to the upstream Supabase stream. Listening to
+/// the derived provider guarantees the notification fires *after* Riverpod
+/// has propagated invalidation through the dependency graph — otherwise the
+/// router could re-run its redirect on the raw stream event and still read
+/// the stale (pre-invalidation) value.
 class _RiverpodRouterRefresh extends ChangeNotifier {
   _RiverpodRouterRefresh(Ref ref) {
-    _authSub = ref.listen<AsyncValue>(
-      authStateProvider,
-      (_, _) => notifyListeners(),
-      fireImmediately: false,
-    );
-    _connSub = ref.listen<AsyncValue<bool>>(
-      connectivityStatusProvider,
+    _authedSub = ref.listen<bool>(
+      isAuthenticatedProvider,
       (_, _) => notifyListeners(),
       fireImmediately: false,
     );
   }
 
-  late final ProviderSubscription<AsyncValue> _authSub;
-  late final ProviderSubscription<AsyncValue<bool>> _connSub;
+  late final ProviderSubscription<bool> _authedSub;
 
   @override
   void dispose() {
-    _authSub.close();
-    _connSub.close();
+    _authedSub.close();
     super.dispose();
   }
 }
@@ -110,68 +164,89 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.home,
-        builder: (_, _) => const HomeShell(),
+        pageBuilder: (_, state) =>
+            _rootPage(state: state, child: const HomeShell()),
       ),
       GoRoute(
         path: AppRoutes.memberAdd,
-        builder: (_, _) => const AddMemberScreen(),
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AddMemberScreen()),
       ),
       GoRoute(
         path: '/members/:id',
-        builder: (_, state) =>
-            MemberDetailScreen(memberId: state.pathParameters['id']!),
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: MemberDetailScreen(memberId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/members/:id/edit',
-        builder: (_, state) =>
-            EditMemberScreen(memberId: state.pathParameters['id']!),
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: EditMemberScreen(memberId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/members/:id/callings/add',
-        builder: (_, state) =>
-            AddCallingScreen(memberId: state.pathParameters['id']!),
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: AddCallingScreen(memberId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/members/:memberId/callings/:callingId',
-        builder: (_, state) => CallingDetailScreen(
-          memberId: state.pathParameters['memberId']!,
-          callingId: state.pathParameters['callingId']!,
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: CallingDetailScreen(
+            memberId: state.pathParameters['memberId']!,
+            callingId: state.pathParameters['callingId']!,
+          ),
         ),
       ),
       GoRoute(
         path: '/members/:memberId/callings/:callingId/edit',
-        builder: (_, state) => EditCallingScreen(
-          memberId: state.pathParameters['memberId']!,
-          callingId: state.pathParameters['callingId']!,
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: EditCallingScreen(
+            memberId: state.pathParameters['memberId']!,
+            callingId: state.pathParameters['callingId']!,
+          ),
         ),
       ),
       GoRoute(
         path: '/members/:memberId/callings/:callingId/record',
-        builder: (_, state) => RecordCallingEventScreen(
-          memberId: state.pathParameters['memberId']!,
-          callingId: state.pathParameters['callingId']!,
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: RecordCallingEventScreen(
+            memberId: state.pathParameters['memberId']!,
+            callingId: state.pathParameters['callingId']!,
+          ),
         ),
       ),
       GoRoute(
         path: '/callings/state/:state',
-        builder: (_, state) {
+        pageBuilder: (_, state) {
           final wire = state.pathParameters['state']!;
-          return CallingsByStateScreen(
-            state: CallingState.fromWire(wire),
+          return _slidePage(
+            state: state,
+            child: CallingsByStateScreen(state: CallingState.fromWire(wire)),
           );
         },
       ),
       GoRoute(
         path: AppRoutes.login,
-        builder: (_, _) => const LoginScreen(),
+        pageBuilder: (_, state) =>
+            _rootPage(state: state, child: const LoginScreen()),
       ),
       GoRoute(
         path: AppRoutes.adminInviteCodes,
-        builder: (_, _) => const AdminInviteCodesScreen(),
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AdminInviteCodesScreen()),
       ),
       GoRoute(
         path: AppRoutes.adminUsers,
-        builder: (_, _) => const AdminUsersScreen(),
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AdminUsersScreen()),
       ),
     ],
   );
