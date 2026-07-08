@@ -98,46 +98,93 @@ class SummarySkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton for the dashboard: hero card at the top then a 2×4 grid of
-/// state tiles matching the real layout.
+/// Skeleton for the dashboard: attention hero, a horizontal strip of
+/// five pipeline steps, an "active" headline, and a short activity list.
 class DashboardSkeleton extends StatelessWidget {
   const DashboardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: ListView(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          // Hero stale card.
+          // Attention hero.
           Container(
-            height: 96,
+            height: 104,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: surface,
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           const SkeletonBox(width: 80, height: 14),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           const SkeletonBox(width: 140, height: 10),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.35,
-            children: List.generate(
-              8,
-              (_) => Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+          // Pipeline strip: five ~96-wide pills.
+          SizedBox(
+            height: 78,
+            child: Row(
+              children: [
+                for (var i = 0; i < 5; i++) ...[
+                  Container(
+                    width: 96,
+                    decoration: BoxDecoration(
+                      color: surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  if (i < 4) const SizedBox(width: 12),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Active headline.
+          Container(
+            height: 82,
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SkeletonBox(width: 120, height: 14),
+          const SizedBox(height: 8),
+          // Three activity rows in a single card.
+          Container(
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              children: [
+                for (var i = 0; i < 3; i++)
+                  const Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SkeletonBox(width: 140, height: 12),
+                              SizedBox(height: 6),
+                              SkeletonBox(width: 200, height: 10),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        SkeletonBox(width: 48, height: 10),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

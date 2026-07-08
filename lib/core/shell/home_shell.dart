@@ -10,6 +10,25 @@ import '../sync/outbox_dao.dart';
 import '../sync/outbox_providers.dart';
 import '../theme/chapel_theme.dart';
 
+/// Which tab of the [HomeShell]'s bottom [NavigationBar] is currently
+/// active. Exposed as a Riverpod provider so any screen inside the shell
+/// can request a tab switch — for example, the Dashboard's "Needs
+/// attention" hero flips the user to the Summary tab.
+///
+/// Indices match the order in the shell's [IndexedStack]:
+/// 0 = Summary, 1 = Dashboard, 2 = Members.
+final homeShellTabProvider =
+    NotifierProvider<HomeShellTabNotifier, int>(HomeShellTabNotifier.new);
+
+class HomeShellTabNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  /// Set the active tab. Callers should use this instead of mutating
+  /// `state` directly so intent reads clearly at call sites.
+  void select(int index) => state = index;
+}
+
 /// Root shell for the authenticated app.
 ///
 /// Hosts a bottom [NavigationBar] with three tabs — Summary, Dashboard,
@@ -21,18 +40,12 @@ import '../theme/chapel_theme.dart';
 /// A slim status strip above the stack surfaces two things when relevant:
 /// an offline banner and a pending-writes pill (count of outbox rows
 /// still waiting to be pushed to Supabase).
-class HomeShell extends ConsumerStatefulWidget {
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key});
 
   @override
-  ConsumerState<HomeShell> createState() => _HomeShellState();
-}
-
-class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(homeShellTabProvider);
     return Scaffold(
       body: SafeArea(
         top: true,
@@ -42,7 +55,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             const _SyncStatusStrip(),
             Expanded(
               child: IndexedStack(
-                index: _index,
+                index: index,
                 children: const [
                   SummaryScreen(),
                   DashboardScreen(),
@@ -54,8 +67,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: index,
+        onDestinationSelected: (i) =>
+            ref.read(homeShellTabProvider.notifier).select(i),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.view_agenda_outlined),

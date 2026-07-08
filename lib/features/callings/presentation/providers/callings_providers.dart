@@ -272,3 +272,81 @@ final distinctOrganizationsProvider = Provider<AsyncValue<List<String>>>((ref) {
     return out;
   });
 });
+
+/// One entry in the dashboard's "Recent activity" list — a state
+/// transition joined with the calling it belongs to and the member who
+/// received it.
+///
+/// Kept as a purpose-built view model (rather than piggybacking on
+/// [CallingSummaryRow]) because the recent-activity list orders by event
+/// time, not by member name, and never renders more than a handful of rows.
+class RecentActivityRow {
+  const RecentActivityRow({
+    required this.event,
+    required this.calling,
+    required this.member,
+  });
+
+  final CallingEvent event;
+  final Calling calling;
+  final Member? member;
+}
+
+/// How many recent activity rows the dashboard shows. Small on purpose —
+/// this is a "what changed lately" glance, not a history log.
+const int dashboardRecentActivityLimit = 5;
+
+/// The N most recent calling events ward-wide, each joined with its
+/// calling and member. Live.
+///
+/// Feeds the dashboard's "Recent activity" section. Events are sourced
+/// from [allEventsStreamProvider], which already emits newest-first
+/// (occurred_at DESC, then created_at DESC). Rows whose calling has been
+/// deleted are dropped defensively — an event with no calling has nothing
+/// meaningful to display and can't be navigated to.
+final recentActivityProvider =
+    Provider<AsyncValue<List<RecentActivityRow>>>((ref) {
+  final eventsAsync = ref.watch(allEventsStreamProvider);
+  final callingsAsync = ref.watch(allCallingsStreamProvider);
+  final membersAsync = ref.watch(allMembersProvider);
+
+  if (eventsAsync.isLoading ||
+      callingsAsync.isLoading ||
+      membersAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+  if (eventsAsync.hasError) {
+    return AsyncValue.error(
+      eventsAsync.error!,
+      eventsAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (callingsAsync.hasError) {
+    return AsyncValue.error(
+      callingsAsync.error!,
+      callingsAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (membersAsync.hasError) {
+    return AsyncValue.error(
+      membersAsync.error!,
+      membersAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+
+  final callingsById = {for (final c in callingsAsync.value!) c.id: c};
+  final membersById = {for (final m in membersAsync.value!) m.id: m};
+
+  final rows = <RecentActivityRow>[];
+  for (final event in eventsAsync.value!) {
+    final calling = callingsById[event.callingId];
+    if (calling == null) continue; // orphan — calling was deleted
+    rows.add(RecentActivityRow(
+      event: event,
+      calling: calling,
+      member: membersById[calling.memberId],
+    ));
+    if (rows.length >= dashboardRecentActivityLimit) break;
+  }
+  return AsyncValue.data(rows);
+});
