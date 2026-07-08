@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/app_user.dart';
+import '../../domain/entities/audit_log_entry.dart';
 import '../../domain/entities/invite_code.dart';
 
 /// Data-layer facade over the admin RPCs.
@@ -56,6 +57,73 @@ class AdminRepository {
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(AppUser.fromMap)
+        .toList(growable: false);
+  }
+
+  /// Promote [userId] to admin. Idempotent — succeeds silently if already
+  /// an admin.
+  Future<void> grantAdmin(String userId) async {
+    await _client.rpc(
+      'grant_admin',
+      params: {'target_user': userId},
+    );
+  }
+
+  /// Demote [userId] from admin. Throws on the server if this would leave
+  /// zero admins.
+  Future<void> revokeAdmin(String userId) async {
+    await _client.rpc(
+      'revoke_admin',
+      params: {'target_user': userId},
+    );
+  }
+
+  /// Hard-delete [userId] from `auth.users`. Server refuses to delete self
+  /// or the last remaining admin.
+  Future<void> deleteUser(String userId) async {
+    await _client.rpc(
+      'delete_user',
+      params: {'target_user': userId},
+    );
+  }
+
+  /// Bootstrap the very first admin. Only succeeds while `public.admins`
+  /// is empty; used by the "no admins yet" UI on a fresh install.
+  Future<void> bootstrapFirstAdmin(String userId) async {
+    await _client.rpc(
+      'bootstrap_first_admin',
+      params: {'target_user': userId},
+    );
+  }
+
+  /// Read a page of the audit log, newest-first. Keyset-paginated on
+  /// `(occurred_at desc, id desc)`.
+  ///
+  /// Pass [before] and [beforeId] from the last entry of the previous page
+  /// to fetch older rows. Omit both for the first page.
+  ///
+  /// [actionLike] uses SQL LIKE semantics (e.g. `'member.%'`); [actorId]
+  /// filters to a single actor.
+  Future<List<AuditLogEntry>> listAuditLog({
+    DateTime? before,
+    int? beforeId,
+    int pageSize = 50,
+    String? actionLike,
+    String? actorId,
+  }) async {
+    final rows = await _client.rpc(
+      'list_audit_log',
+      params: {
+        'before_at': before?.toUtc().toIso8601String(),
+        'before_id': beforeId,
+        'page_size': pageSize,
+        'action_like': actionLike,
+        'actor': actorId,
+      },
+    );
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(AuditLogEntry.fromMap)
         .toList(growable: false);
   }
 }

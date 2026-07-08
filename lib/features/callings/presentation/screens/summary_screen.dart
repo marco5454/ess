@@ -92,6 +92,11 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
               tooltip: 'Invite codes',
               onPressed: () => context.push(AppRoutes.adminInviteCodes),
             ),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Activity log',
+              onPressed: () => context.push(AppRoutes.adminAuditLog),
+            ),
           ],
           IconButton(
             icon: const Icon(Icons.logout),

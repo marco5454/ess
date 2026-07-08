@@ -8,12 +8,17 @@ import '../../../../core/legal/legal_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_icon.dart';
 import '../../../../core/theme/chapel_theme.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../providers/auth_repository_provider.dart';
 
 /// Login screen for the bishopric tracker.
 ///
-/// Presents the branding on a cream background with a chapel-book icon
-/// hero, then a compact card containing the email/password form. Router
-/// redirect handles the transition on success.
+/// Two modes on the same screen, selected by a `SegmentedButton`:
+///   - Sign in — email + password.
+///   - Create account — email + password + invite code. Invite codes are
+///     issued from the admin invite-codes screen; there is no open sign-up.
+///
+/// Router redirect handles the transition on success.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,22 +26,39 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
+enum _AuthMode { signIn, signUp }
+
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
+  _AuthMode _mode = _AuthMode.signIn;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _inviteCodeController.dispose();
     super.dispose();
   }
 
-  Future<void> _signIn() async {
-    if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
+  void _setMode(_AuthMode mode) {
+    if (_isSubmitting || mode == _mode) return;
+    setState(() => _mode = mode);
+  }
 
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+    if (_mode == _AuthMode.signIn) {
+      await _signIn();
+    } else {
+      await _signUp();
+    }
+  }
+
+  Future<void> _signIn() async {
+    setState(() => _isSubmitting = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
       await supabase.auth.signInWithPassword(
@@ -49,6 +71,70 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       messenger.showSnackBar(SnackBar(content: Text('Sign-in failed: $e')));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _signUp() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final code = _inviteCodeController.text.trim().toUpperCase();
+
+    // Client-side sanity checks so we don't burn a round-trip on obvious
+    // input errors.
+    if (email.isEmpty || password.isEmpty || code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your email, password, and invite code.'),
+        ),
+      );
+      return;
+    }
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(authRepositoryProvider);
+    try {
+      await repo.signUpWithInvite(
+        email: email,
+        password: password,
+        inviteCode: code,
+      );
+      // Success — the auth state stream will flip the router to authed.
+    } on SignUpFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_messageFor(e))));
+    } on AuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Sign-up failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  String _messageFor(SignUpFailure e) {
+    switch (e.kind) {
+      case SignUpFailureKind.inviteInvalid:
+        return 'That invite code is not valid. Ask an admin for a new one.';
+      case SignUpFailureKind.emailInUse:
+        return 'That email is already registered. Try signing in.';
+      case SignUpFailureKind.weakPassword:
+        return 'That password is too weak. Try a longer one.';
+      case SignUpFailureKind.inviteConsumeRaced:
+        // The account was created but the code wasn't consumed. The user
+        // is signed in; router will move them on. Show a warning so an
+        // admin can clean up if needed.
+        return 'Account created, but the invite code could not be marked '
+            'used. Contact an admin.';
+      case SignUpFailureKind.other:
+        return 'Sign-up failed: ${e.cause ?? 'unknown error'}';
     }
   }
 
@@ -68,11 +154,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   _BrandingHero(),
                   const SizedBox(height: 28),
-                  _SignInCard(
+                  _AuthCard(
+                    mode: _mode,
                     emailController: _emailController,
                     passwordController: _passwordController,
+                    inviteCodeController: _inviteCodeController,
                     isSubmitting: _isSubmitting,
-                    onSignIn: _signIn,
+                    onModeChanged: _setMode,
+                    onSubmit: _submit,
                   ),
                   const SizedBox(height: 24),
                   const _DisclaimerFooter(),
@@ -130,18 +219,26 @@ class _BrandingHero extends StatelessWidget {
   }
 }
 
-class _SignInCard extends StatelessWidget {
-  const _SignInCard({
+class _AuthCard extends StatelessWidget {
+  const _AuthCard({
+    required this.mode,
     required this.emailController,
     required this.passwordController,
+    required this.inviteCodeController,
     required this.isSubmitting,
-    required this.onSignIn,
+    required this.onModeChanged,
+    required this.onSubmit,
   });
 
+  final _AuthMode mode;
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController inviteCodeController;
   final bool isSubmitting;
-  final VoidCallback onSignIn;
+  final ValueChanged<_AuthMode> onModeChanged;
+  final VoidCallback onSubmit;
+
+  bool get _isSignUp => mode == _AuthMode.signUp;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +249,23 @@ class _SignInCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+            SegmentedButton<_AuthMode>(
+              segments: const [
+                ButtonSegment(
+                  value: _AuthMode.signIn,
+                  label: Text('Sign in'),
+                  icon: Icon(Icons.login),
+                ),
+                ButtonSegment(
+                  value: _AuthMode.signUp,
+                  label: Text('Create account'),
+                  icon: Icon(Icons.person_add_alt),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) => onModeChanged(s.first),
+            ),
+            const SizedBox(height: 18),
             TextField(
               controller: emailController,
               enabled: !isSubmitting,
@@ -167,16 +281,33 @@ class _SignInCard extends StatelessWidget {
               controller: passwordController,
               enabled: !isSubmitting,
               obscureText: true,
-              autofillHints: const [AutofillHints.password],
-              onSubmitted: (_) => onSignIn(),
-              decoration: const InputDecoration(
+              autofillHints: _isSignUp
+                  ? const [AutofillHints.newPassword]
+                  : const [AutofillHints.password],
+              onSubmitted: _isSignUp ? null : (_) => onSubmit(),
+              decoration: InputDecoration(
                 labelText: 'Password',
-                prefixIcon: Icon(Icons.lock_outline),
+                prefixIcon: const Icon(Icons.lock_outline),
+                helperText: _isSignUp ? 'At least 6 characters.' : null,
               ),
             ),
+            if (_isSignUp) ...[
+              const SizedBox(height: 14),
+              TextField(
+                controller: inviteCodeController,
+                enabled: !isSubmitting,
+                textCapitalization: TextCapitalization.characters,
+                onSubmitted: (_) => onSubmit(),
+                decoration: const InputDecoration(
+                  labelText: 'Invite code',
+                  prefixIcon: Icon(Icons.confirmation_number_outlined),
+                  helperText: 'Ask an admin for a code.',
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             FilledButton(
-              onPressed: isSubmitting ? null : onSignIn,
+              onPressed: isSubmitting ? null : onSubmit,
               child: isSubmitting
                   ? const SizedBox(
                       height: 20,
@@ -186,7 +317,7 @@ class _SignInCard extends StatelessWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Sign in'),
+                  : Text(_isSignUp ? 'Create account' : 'Sign in'),
             ),
           ],
         ),

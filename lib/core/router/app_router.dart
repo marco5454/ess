@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/admin/presentation/screens/admin_audit_log_screen.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
 import '../../features/callings/domain/entities/calling_state.dart';
@@ -86,6 +87,7 @@ class AppRoutes {
   static const agenda = '/agenda';
   static const adminInviteCodes = '/admin/invite-codes';
   static const adminUsers = '/admin/users';
+  static const adminAuditLog = '/admin/audit-log';
   static const memberAdd = '/members/add';
 
   /// Build the detail path for a specific member.
@@ -267,6 +269,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.adminUsers,
         pageBuilder: (_, state) =>
             _slidePage(state: state, child: const AdminUsersScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.adminAuditLog,
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AdminAuditLogScreen()),
       ),
     ],
   );
