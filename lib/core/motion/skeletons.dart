@@ -195,54 +195,76 @@ class DashboardSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton for the member detail screen: an "info card" block at the
-/// top then a shorter list of "callings" rows.
+/// Skeleton for the member detail screen: a hero row (avatar + name +
+/// chips), a contact card, then a shorter "callings" card.
 class MemberDetailSkeleton extends StatelessWidget {
   const MemberDetailSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surfaceContainer;
     return Shimmer(
       child: ListView(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          // Hero: avatar + two lines + chip strip.
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonCircle(size: 68),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SkeletonBox(width: 180, height: 22),
+                      SizedBox(height: 8),
+                      SkeletonBox(width: 120, height: 12),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          SkeletonBox(width: 64, height: 22, radius: 999),
+                          SizedBox(width: 6),
+                          SkeletonBox(width: 52, height: 22, radius: 999),
+                          SizedBox(width: 6),
+                          SkeletonBox(width: 48, height: 22, radius: 999),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Contact card placeholder.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Container(
-              height: 140,
+              height: 130,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                color: surface,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
-          const Divider(height: 1),
+          // "Current callings" heading + card placeholder.
           const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: SkeletonBox(width: 80, height: 14),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: SkeletonBox(width: 140, height: 16),
           ),
-          for (var i = 0; i < 3; i++) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SkeletonBox(width: 160, height: 14),
-                        SizedBox(height: 8),
-                        SkeletonBox(width: 100, height: 10),
-                      ],
-                    ),
-                  ),
-                  SkeletonBox(width: 60, height: 22, radius: 8),
-                ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Container(
+              height: 88,
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            const Divider(height: 1),
-          ],
+          ),
         ],
       ),
     );

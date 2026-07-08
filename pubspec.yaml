@@ -52,6 +52,10 @@ dependencies:
   # artifact download at build time).
   connectivity_plus: ^7.0.2
 
+  # Launch tel:, mailto:, and sms: URIs from the member detail screen so
+  # phone / email rows are actionable rather than plain text.
+  url_launcher: ^6.3.0
+
 # Compile SQLite from the amalgamation source we vendor at third_party/sqlite/sqlite3.c
 # instead of downloading a precompiled .so from GitHub (the default behavior of the
 # `sqlite3` package). Doing so makes builds work in network-restricted environments
