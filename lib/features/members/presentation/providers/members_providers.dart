@@ -1,12 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/db/app_database_provider.dart';
+import '../../data/local/members_dao.dart';
 import '../../data/repositories/members_repository.dart';
 import '../../domain/entities/member.dart';
 
+/// Provides the local Drift-backed [MembersDao].
+final membersDaoProvider = Provider<MembersDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return MembersDao(db);
+});
+
 /// Provides the singleton [MembersRepository].
 final membersRepositoryProvider = Provider<MembersRepository>((ref) {
-  return MembersRepository(supabase);
+  return MembersRepository(
+    client: supabase,
+    dao: ref.watch(membersDaoProvider),
+  );
 });
 
 /// Live ward-wide members stream (both active and archived).

@@ -3,7 +3,7 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
+class $MembersTable extends Members with TableInfo<$MembersTable, MemberRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -168,7 +168,7 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
   static const String $name = 'members';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Member> instance, {
+    Insertable<MemberRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -273,9 +273,9 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Member map(Map<String, dynamic> data, {String? tablePrefix}) {
+  MemberRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Member(
+    return MemberRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -337,7 +337,7 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
   }
 }
 
-class Member extends DataClass implements Insertable<Member> {
+class MemberRow extends DataClass implements Insertable<MemberRow> {
   final String id;
   final String firstName;
   final String lastName;
@@ -351,7 +351,7 @@ class Member extends DataClass implements Insertable<Member> {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const Member({
+  const MemberRow({
     required this.id,
     required this.firstName,
     required this.lastName,
@@ -429,12 +429,12 @@ class Member extends DataClass implements Insertable<Member> {
     );
   }
 
-  factory Member.fromJson(
+  factory MemberRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Member(
+    return MemberRow(
       id: serializer.fromJson<String>(json['id']),
       firstName: serializer.fromJson<String>(json['firstName']),
       lastName: serializer.fromJson<String>(json['lastName']),
@@ -470,7 +470,7 @@ class Member extends DataClass implements Insertable<Member> {
     };
   }
 
-  Member copyWith({
+  MemberRow copyWith({
     String? id,
     String? firstName,
     String? lastName,
@@ -484,7 +484,7 @@ class Member extends DataClass implements Insertable<Member> {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => Member(
+  }) => MemberRow(
     id: id ?? this.id,
     firstName: firstName ?? this.firstName,
     lastName: lastName ?? this.lastName,
@@ -503,8 +503,8 @@ class Member extends DataClass implements Insertable<Member> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  Member copyWithCompanion(MembersCompanion data) {
-    return Member(
+  MemberRow copyWithCompanion(MembersCompanion data) {
+    return MemberRow(
       id: data.id.present ? data.id.value : this.id,
       firstName: data.firstName.present ? data.firstName.value : this.firstName,
       lastName: data.lastName.present ? data.lastName.value : this.lastName,
@@ -529,7 +529,7 @@ class Member extends DataClass implements Insertable<Member> {
 
   @override
   String toString() {
-    return (StringBuffer('Member(')
+    return (StringBuffer('MemberRow(')
           ..write('id: $id, ')
           ..write('firstName: $firstName, ')
           ..write('lastName: $lastName, ')
@@ -566,7 +566,7 @@ class Member extends DataClass implements Insertable<Member> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Member &&
+      (other is MemberRow &&
           other.id == this.id &&
           other.firstName == this.firstName &&
           other.lastName == this.lastName &&
@@ -582,7 +582,7 @@ class Member extends DataClass implements Insertable<Member> {
           other.updatedAt == this.updatedAt);
 }
 
-class MembersCompanion extends UpdateCompanion<Member> {
+class MembersCompanion extends UpdateCompanion<MemberRow> {
   final Value<String> id;
   final Value<String> firstName;
   final Value<String> lastName;
@@ -633,7 +633,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
        lastName = Value(lastName),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<Member> custom({
+  static Insertable<MemberRow> custom({
     Expression<String>? id,
     Expression<String>? firstName,
     Expression<String>? lastName,
@@ -771,7 +771,8 @@ class MembersCompanion extends UpdateCompanion<Member> {
   }
 }
 
-class $CallingsTable extends Callings with TableInfo<$CallingsTable, Calling> {
+class $CallingsTable extends Callings
+    with TableInfo<$CallingsTable, CallingRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -876,7 +877,7 @@ class $CallingsTable extends Callings with TableInfo<$CallingsTable, Calling> {
   static const String $name = 'callings';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Calling> instance, {
+    Insertable<CallingRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -945,9 +946,9 @@ class $CallingsTable extends Callings with TableInfo<$CallingsTable, Calling> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Calling map(Map<String, dynamic> data, {String? tablePrefix}) {
+  CallingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Calling(
+    return CallingRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -989,7 +990,7 @@ class $CallingsTable extends Callings with TableInfo<$CallingsTable, Calling> {
   }
 }
 
-class Calling extends DataClass implements Insertable<Calling> {
+class CallingRow extends DataClass implements Insertable<CallingRow> {
   final String id;
   final String memberId;
   final String title;
@@ -998,7 +999,7 @@ class Calling extends DataClass implements Insertable<Calling> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
-  const Calling({
+  const CallingRow({
     required this.id,
     required this.memberId,
     required this.title,
@@ -1047,12 +1048,12 @@ class Calling extends DataClass implements Insertable<Calling> {
     );
   }
 
-  factory Calling.fromJson(
+  factory CallingRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Calling(
+    return CallingRow(
       id: serializer.fromJson<String>(json['id']),
       memberId: serializer.fromJson<String>(json['memberId']),
       title: serializer.fromJson<String>(json['title']),
@@ -1078,7 +1079,7 @@ class Calling extends DataClass implements Insertable<Calling> {
     };
   }
 
-  Calling copyWith({
+  CallingRow copyWith({
     String? id,
     String? memberId,
     String? title,
@@ -1087,7 +1088,7 @@ class Calling extends DataClass implements Insertable<Calling> {
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
-  }) => Calling(
+  }) => CallingRow(
     id: id ?? this.id,
     memberId: memberId ?? this.memberId,
     title: title ?? this.title,
@@ -1097,8 +1098,8 @@ class Calling extends DataClass implements Insertable<Calling> {
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
-  Calling copyWithCompanion(CallingsCompanion data) {
-    return Calling(
+  CallingRow copyWithCompanion(CallingsCompanion data) {
+    return CallingRow(
       id: data.id.present ? data.id.value : this.id,
       memberId: data.memberId.present ? data.memberId.value : this.memberId,
       title: data.title.present ? data.title.value : this.title,
@@ -1114,7 +1115,7 @@ class Calling extends DataClass implements Insertable<Calling> {
 
   @override
   String toString() {
-    return (StringBuffer('Calling(')
+    return (StringBuffer('CallingRow(')
           ..write('id: $id, ')
           ..write('memberId: $memberId, ')
           ..write('title: $title, ')
@@ -1141,7 +1142,7 @@ class Calling extends DataClass implements Insertable<Calling> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Calling &&
+      (other is CallingRow &&
           other.id == this.id &&
           other.memberId == this.memberId &&
           other.title == this.title &&
@@ -1152,7 +1153,7 @@ class Calling extends DataClass implements Insertable<Calling> {
           other.deletedAt == this.deletedAt);
 }
 
-class CallingsCompanion extends UpdateCompanion<Calling> {
+class CallingsCompanion extends UpdateCompanion<CallingRow> {
   final Value<String> id;
   final Value<String> memberId;
   final Value<String> title;
@@ -1188,7 +1189,7 @@ class CallingsCompanion extends UpdateCompanion<Calling> {
        title = Value(title),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<Calling> custom({
+  static Insertable<CallingRow> custom({
     Expression<String>? id,
     Expression<String>? memberId,
     Expression<String>? title,
@@ -1287,7 +1288,7 @@ class CallingsCompanion extends UpdateCompanion<Calling> {
 }
 
 class $CallingEventsTable extends CallingEvents
-    with TableInfo<$CallingEventsTable, CallingEvent> {
+    with TableInfo<$CallingEventsTable, CallingEventRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1404,7 +1405,7 @@ class $CallingEventsTable extends CallingEvents
   static const String $name = 'calling_events';
   @override
   VerificationContext validateIntegrity(
-    Insertable<CallingEvent> instance, {
+    Insertable<CallingEventRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -1478,9 +1479,9 @@ class $CallingEventsTable extends CallingEvents
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  CallingEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+  CallingEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return CallingEvent(
+    return CallingEventRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -1526,7 +1527,7 @@ class $CallingEventsTable extends CallingEvents
   }
 }
 
-class CallingEvent extends DataClass implements Insertable<CallingEvent> {
+class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
   final String id;
   final String callingId;
   final String state;
@@ -1536,7 +1537,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
-  const CallingEvent({
+  const CallingEventRow({
     required this.id,
     required this.callingId,
     required this.state,
@@ -1588,12 +1589,12 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
     );
   }
 
-  factory CallingEvent.fromJson(
+  factory CallingEventRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return CallingEvent(
+    return CallingEventRow(
       id: serializer.fromJson<String>(json['id']),
       callingId: serializer.fromJson<String>(json['callingId']),
       state: serializer.fromJson<String>(json['state']),
@@ -1621,7 +1622,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
     };
   }
 
-  CallingEvent copyWith({
+  CallingEventRow copyWith({
     String? id,
     String? callingId,
     String? state,
@@ -1631,7 +1632,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
-  }) => CallingEvent(
+  }) => CallingEventRow(
     id: id ?? this.id,
     callingId: callingId ?? this.callingId,
     state: state ?? this.state,
@@ -1642,8 +1643,8 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
-  CallingEvent copyWithCompanion(CallingEventsCompanion data) {
-    return CallingEvent(
+  CallingEventRow copyWithCompanion(CallingEventsCompanion data) {
+    return CallingEventRow(
       id: data.id.present ? data.id.value : this.id,
       callingId: data.callingId.present ? data.callingId.value : this.callingId,
       state: data.state.present ? data.state.value : this.state,
@@ -1662,7 +1663,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
 
   @override
   String toString() {
-    return (StringBuffer('CallingEvent(')
+    return (StringBuffer('CallingEventRow(')
           ..write('id: $id, ')
           ..write('callingId: $callingId, ')
           ..write('state: $state, ')
@@ -1691,7 +1692,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is CallingEvent &&
+      (other is CallingEventRow &&
           other.id == this.id &&
           other.callingId == this.callingId &&
           other.state == this.state &&
@@ -1703,7 +1704,7 @@ class CallingEvent extends DataClass implements Insertable<CallingEvent> {
           other.deletedAt == this.deletedAt);
 }
 
-class CallingEventsCompanion extends UpdateCompanion<CallingEvent> {
+class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
   final Value<String> id;
   final Value<String> callingId;
   final Value<String> state;
@@ -1743,7 +1744,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEvent> {
        occurredAt = Value(occurredAt),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<CallingEvent> custom({
+  static Insertable<CallingEventRow> custom({
     Expression<String>? id,
     Expression<String>? callingId,
     Expression<String>? state,
@@ -1849,7 +1850,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEvent> {
   }
 }
 
-class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
+class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxEntry> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1975,7 +1976,7 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
   static const String $name = 'outbox';
   @override
   VerificationContext validateIntegrity(
-    Insertable<OutboxData> instance, {
+    Insertable<OutboxEntry> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2047,9 +2048,9 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  OutboxData map(Map<String, dynamic> data, {String? tablePrefix}) {
+  OutboxEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return OutboxData(
+    return OutboxEntry(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -2095,7 +2096,7 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
   }
 }
 
-class OutboxData extends DataClass implements Insertable<OutboxData> {
+class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
   final int id;
   final String opId;
   final String entityType;
@@ -2105,7 +2106,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final DateTime createdAt;
   final int attempts;
   final String? lastError;
-  const OutboxData({
+  const OutboxEntry({
     required this.id,
     required this.opId,
     required this.entityType,
@@ -2149,12 +2150,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     );
   }
 
-  factory OutboxData.fromJson(
+  factory OutboxEntry.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return OutboxData(
+    return OutboxEntry(
       id: serializer.fromJson<int>(json['id']),
       opId: serializer.fromJson<String>(json['opId']),
       entityType: serializer.fromJson<String>(json['entityType']),
@@ -2182,7 +2183,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     };
   }
 
-  OutboxData copyWith({
+  OutboxEntry copyWith({
     int? id,
     String? opId,
     String? entityType,
@@ -2192,7 +2193,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     DateTime? createdAt,
     int? attempts,
     Value<String?> lastError = const Value.absent(),
-  }) => OutboxData(
+  }) => OutboxEntry(
     id: id ?? this.id,
     opId: opId ?? this.opId,
     entityType: entityType ?? this.entityType,
@@ -2203,8 +2204,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     attempts: attempts ?? this.attempts,
     lastError: lastError.present ? lastError.value : this.lastError,
   );
-  OutboxData copyWithCompanion(OutboxCompanion data) {
-    return OutboxData(
+  OutboxEntry copyWithCompanion(OutboxCompanion data) {
+    return OutboxEntry(
       id: data.id.present ? data.id.value : this.id,
       opId: data.opId.present ? data.opId.value : this.opId,
       entityType: data.entityType.present
@@ -2221,7 +2222,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
 
   @override
   String toString() {
-    return (StringBuffer('OutboxData(')
+    return (StringBuffer('OutboxEntry(')
           ..write('id: $id, ')
           ..write('opId: $opId, ')
           ..write('entityType: $entityType, ')
@@ -2250,7 +2251,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is OutboxData &&
+      (other is OutboxEntry &&
           other.id == this.id &&
           other.opId == this.opId &&
           other.entityType == this.entityType &&
@@ -2262,7 +2263,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.lastError == this.lastError);
 }
 
-class OutboxCompanion extends UpdateCompanion<OutboxData> {
+class OutboxCompanion extends UpdateCompanion<OutboxEntry> {
   final Value<int> id;
   final Value<String> opId;
   final Value<String> entityType;
@@ -2298,7 +2299,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
        entityId = Value(entityId),
        operation = Value(operation),
        payload = Value(payload);
-  static Insertable<OutboxData> custom({
+  static Insertable<OutboxEntry> custom({
     Expression<int>? id,
     Expression<String>? opId,
     Expression<String>? entityType,
@@ -2397,7 +2398,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
 }
 
 class $SyncMetaTable extends SyncMeta
-    with TableInfo<$SyncMetaTable, SyncMetaData> {
+    with TableInfo<$SyncMetaTable, SyncMetaEntry> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -2429,7 +2430,7 @@ class $SyncMetaTable extends SyncMeta
   static const String $name = 'sync_meta';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SyncMetaData> instance, {
+    Insertable<SyncMetaEntry> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2456,9 +2457,9 @@ class $SyncMetaTable extends SyncMeta
   @override
   Set<GeneratedColumn> get $primaryKey => {key};
   @override
-  SyncMetaData map(Map<String, dynamic> data, {String? tablePrefix}) {
+  SyncMetaEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncMetaData(
+    return SyncMetaEntry(
       key: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}key'],
@@ -2476,10 +2477,10 @@ class $SyncMetaTable extends SyncMeta
   }
 }
 
-class SyncMetaData extends DataClass implements Insertable<SyncMetaData> {
+class SyncMetaEntry extends DataClass implements Insertable<SyncMetaEntry> {
   final String key;
   final String value;
-  const SyncMetaData({required this.key, required this.value});
+  const SyncMetaEntry({required this.key, required this.value});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2492,12 +2493,12 @@ class SyncMetaData extends DataClass implements Insertable<SyncMetaData> {
     return SyncMetaCompanion(key: Value(key), value: Value(value));
   }
 
-  factory SyncMetaData.fromJson(
+  factory SyncMetaEntry.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncMetaData(
+    return SyncMetaEntry(
       key: serializer.fromJson<String>(json['key']),
       value: serializer.fromJson<String>(json['value']),
     );
@@ -2511,10 +2512,10 @@ class SyncMetaData extends DataClass implements Insertable<SyncMetaData> {
     };
   }
 
-  SyncMetaData copyWith({String? key, String? value}) =>
-      SyncMetaData(key: key ?? this.key, value: value ?? this.value);
-  SyncMetaData copyWithCompanion(SyncMetaCompanion data) {
-    return SyncMetaData(
+  SyncMetaEntry copyWith({String? key, String? value}) =>
+      SyncMetaEntry(key: key ?? this.key, value: value ?? this.value);
+  SyncMetaEntry copyWithCompanion(SyncMetaCompanion data) {
+    return SyncMetaEntry(
       key: data.key.present ? data.key.value : this.key,
       value: data.value.present ? data.value.value : this.value,
     );
@@ -2522,7 +2523,7 @@ class SyncMetaData extends DataClass implements Insertable<SyncMetaData> {
 
   @override
   String toString() {
-    return (StringBuffer('SyncMetaData(')
+    return (StringBuffer('SyncMetaEntry(')
           ..write('key: $key, ')
           ..write('value: $value')
           ..write(')'))
@@ -2534,12 +2535,12 @@ class SyncMetaData extends DataClass implements Insertable<SyncMetaData> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SyncMetaData &&
+      (other is SyncMetaEntry &&
           other.key == this.key &&
           other.value == this.value);
 }
 
-class SyncMetaCompanion extends UpdateCompanion<SyncMetaData> {
+class SyncMetaCompanion extends UpdateCompanion<SyncMetaEntry> {
   final Value<String> key;
   final Value<String> value;
   final Value<int> rowid;
@@ -2554,7 +2555,7 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetaData> {
     this.rowid = const Value.absent(),
   }) : key = Value(key),
        value = Value(value);
-  static Insertable<SyncMetaData> custom({
+  static Insertable<SyncMetaEntry> custom({
     Expression<String>? key,
     Expression<String>? value,
     Expression<int>? rowid,
@@ -2870,14 +2871,14 @@ class $$MembersTableTableManager
         RootTableManager<
           _$AppDatabase,
           $MembersTable,
-          Member,
+          MemberRow,
           $$MembersTableFilterComposer,
           $$MembersTableOrderingComposer,
           $$MembersTableAnnotationComposer,
           $$MembersTableCreateCompanionBuilder,
           $$MembersTableUpdateCompanionBuilder,
-          (Member, BaseReferences<_$AppDatabase, $MembersTable, Member>),
-          Member,
+          (MemberRow, BaseReferences<_$AppDatabase, $MembersTable, MemberRow>),
+          MemberRow,
           PrefetchHooks Function()
         > {
   $$MembersTableTableManager(_$AppDatabase db, $MembersTable table)
@@ -2967,14 +2968,14 @@ typedef $$MembersTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $MembersTable,
-      Member,
+      MemberRow,
       $$MembersTableFilterComposer,
       $$MembersTableOrderingComposer,
       $$MembersTableAnnotationComposer,
       $$MembersTableCreateCompanionBuilder,
       $$MembersTableUpdateCompanionBuilder,
-      (Member, BaseReferences<_$AppDatabase, $MembersTable, Member>),
-      Member,
+      (MemberRow, BaseReferences<_$AppDatabase, $MembersTable, MemberRow>),
+      MemberRow,
       PrefetchHooks Function()
     >;
 typedef $$CallingsTableCreateCompanionBuilder =
@@ -3143,14 +3144,17 @@ class $$CallingsTableTableManager
         RootTableManager<
           _$AppDatabase,
           $CallingsTable,
-          Calling,
+          CallingRow,
           $$CallingsTableFilterComposer,
           $$CallingsTableOrderingComposer,
           $$CallingsTableAnnotationComposer,
           $$CallingsTableCreateCompanionBuilder,
           $$CallingsTableUpdateCompanionBuilder,
-          (Calling, BaseReferences<_$AppDatabase, $CallingsTable, Calling>),
-          Calling,
+          (
+            CallingRow,
+            BaseReferences<_$AppDatabase, $CallingsTable, CallingRow>,
+          ),
+          CallingRow,
           PrefetchHooks Function()
         > {
   $$CallingsTableTableManager(_$AppDatabase db, $CallingsTable table)
@@ -3220,14 +3224,14 @@ typedef $$CallingsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $CallingsTable,
-      Calling,
+      CallingRow,
       $$CallingsTableFilterComposer,
       $$CallingsTableOrderingComposer,
       $$CallingsTableAnnotationComposer,
       $$CallingsTableCreateCompanionBuilder,
       $$CallingsTableUpdateCompanionBuilder,
-      (Calling, BaseReferences<_$AppDatabase, $CallingsTable, Calling>),
-      Calling,
+      (CallingRow, BaseReferences<_$AppDatabase, $CallingsTable, CallingRow>),
+      CallingRow,
       PrefetchHooks Function()
     >;
 typedef $$CallingEventsTableCreateCompanionBuilder =
@@ -3413,17 +3417,17 @@ class $$CallingEventsTableTableManager
         RootTableManager<
           _$AppDatabase,
           $CallingEventsTable,
-          CallingEvent,
+          CallingEventRow,
           $$CallingEventsTableFilterComposer,
           $$CallingEventsTableOrderingComposer,
           $$CallingEventsTableAnnotationComposer,
           $$CallingEventsTableCreateCompanionBuilder,
           $$CallingEventsTableUpdateCompanionBuilder,
           (
-            CallingEvent,
-            BaseReferences<_$AppDatabase, $CallingEventsTable, CallingEvent>,
+            CallingEventRow,
+            BaseReferences<_$AppDatabase, $CallingEventsTable, CallingEventRow>,
           ),
-          CallingEvent,
+          CallingEventRow,
           PrefetchHooks Function()
         > {
   $$CallingEventsTableTableManager(_$AppDatabase db, $CallingEventsTable table)
@@ -3497,17 +3501,17 @@ typedef $$CallingEventsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $CallingEventsTable,
-      CallingEvent,
+      CallingEventRow,
       $$CallingEventsTableFilterComposer,
       $$CallingEventsTableOrderingComposer,
       $$CallingEventsTableAnnotationComposer,
       $$CallingEventsTableCreateCompanionBuilder,
       $$CallingEventsTableUpdateCompanionBuilder,
       (
-        CallingEvent,
-        BaseReferences<_$AppDatabase, $CallingEventsTable, CallingEvent>,
+        CallingEventRow,
+        BaseReferences<_$AppDatabase, $CallingEventsTable, CallingEventRow>,
       ),
-      CallingEvent,
+      CallingEventRow,
       PrefetchHooks Function()
     >;
 typedef $$OutboxTableCreateCompanionBuilder =
@@ -3689,14 +3693,17 @@ class $$OutboxTableTableManager
         RootTableManager<
           _$AppDatabase,
           $OutboxTable,
-          OutboxData,
+          OutboxEntry,
           $$OutboxTableFilterComposer,
           $$OutboxTableOrderingComposer,
           $$OutboxTableAnnotationComposer,
           $$OutboxTableCreateCompanionBuilder,
           $$OutboxTableUpdateCompanionBuilder,
-          (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
-          OutboxData,
+          (
+            OutboxEntry,
+            BaseReferences<_$AppDatabase, $OutboxTable, OutboxEntry>,
+          ),
+          OutboxEntry,
           PrefetchHooks Function()
         > {
   $$OutboxTableTableManager(_$AppDatabase db, $OutboxTable table)
@@ -3766,14 +3773,14 @@ typedef $$OutboxTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $OutboxTable,
-      OutboxData,
+      OutboxEntry,
       $$OutboxTableFilterComposer,
       $$OutboxTableOrderingComposer,
       $$OutboxTableAnnotationComposer,
       $$OutboxTableCreateCompanionBuilder,
       $$OutboxTableUpdateCompanionBuilder,
-      (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
-      OutboxData,
+      (OutboxEntry, BaseReferences<_$AppDatabase, $OutboxTable, OutboxEntry>),
+      OutboxEntry,
       PrefetchHooks Function()
     >;
 typedef $$SyncMetaTableCreateCompanionBuilder =
@@ -3850,17 +3857,17 @@ class $$SyncMetaTableTableManager
         RootTableManager<
           _$AppDatabase,
           $SyncMetaTable,
-          SyncMetaData,
+          SyncMetaEntry,
           $$SyncMetaTableFilterComposer,
           $$SyncMetaTableOrderingComposer,
           $$SyncMetaTableAnnotationComposer,
           $$SyncMetaTableCreateCompanionBuilder,
           $$SyncMetaTableUpdateCompanionBuilder,
           (
-            SyncMetaData,
-            BaseReferences<_$AppDatabase, $SyncMetaTable, SyncMetaData>,
+            SyncMetaEntry,
+            BaseReferences<_$AppDatabase, $SyncMetaTable, SyncMetaEntry>,
           ),
-          SyncMetaData,
+          SyncMetaEntry,
           PrefetchHooks Function()
         > {
   $$SyncMetaTableTableManager(_$AppDatabase db, $SyncMetaTable table)
@@ -3902,17 +3909,17 @@ typedef $$SyncMetaTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $SyncMetaTable,
-      SyncMetaData,
+      SyncMetaEntry,
       $$SyncMetaTableFilterComposer,
       $$SyncMetaTableOrderingComposer,
       $$SyncMetaTableAnnotationComposer,
       $$SyncMetaTableCreateCompanionBuilder,
       $$SyncMetaTableUpdateCompanionBuilder,
       (
-        SyncMetaData,
-        BaseReferences<_$AppDatabase, $SyncMetaTable, SyncMetaData>,
+        SyncMetaEntry,
+        BaseReferences<_$AppDatabase, $SyncMetaTable, SyncMetaEntry>,
       ),
-      SyncMetaData,
+      SyncMetaEntry,
       PrefetchHooks Function()
     >;
 

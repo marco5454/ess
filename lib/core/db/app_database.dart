@@ -19,6 +19,10 @@ part 'app_database.g.dart';
 /// phases.
 
 /// Ward members. Mirrors `public.members`.
+///
+/// The generated row class is renamed to `MemberRow` to avoid colliding with
+/// the domain entity `Member` in `features/members/domain/entities/member.dart`.
+@DataClassName('MemberRow')
 class Members extends Table {
   TextColumn get id => text()();
   TextColumn get firstName => text().named('first_name')();
@@ -45,6 +49,10 @@ class Members extends Table {
 /// `deletedAt` is the client-side tombstone from the phase-1 server migration;
 /// non-null means the row is soft-deleted and must be hidden from UI + not
 /// re-inserted by a sync round.
+///
+/// Row class renamed to `CallingRow` to avoid colliding with the domain
+/// entity `Calling`.
+@DataClassName('CallingRow')
 class Callings extends Table {
   TextColumn get id => text()();
   TextColumn get memberId => text().named('member_id')();
@@ -65,6 +73,10 @@ class Callings extends Table {
 /// so the server enum can be round-tripped without a client-side mapping
 /// table. `updatedAt` is only meaningful after the phase-1 server migration
 /// (older rows get `now()` on backfill).
+///
+/// Row class renamed to `CallingEventRow` to avoid colliding with the domain
+/// entity `CallingEvent`.
+@DataClassName('CallingEventRow')
 class CallingEvents extends Table {
   TextColumn get id => text()();
   TextColumn get callingId => text().named('calling_id')();
@@ -88,6 +100,7 @@ class CallingEvents extends Table {
 /// body needed to replay the mutation (columns for insert/update, PK for
 /// delete). [attempts] and [lastError] let us back off and eventually surface
 /// stuck items to the user.
+@DataClassName('OutboxEntry')
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get opId => text().named('op_id').unique()();
@@ -105,6 +118,7 @@ class Outbox extends Table {
 
 /// Key/value bag for sync bookkeeping (e.g. `last_pull.members`).
 /// Values are opaque strings; callers encode/decode as needed.
+@DataClassName('SyncMetaEntry')
 class SyncMeta extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();

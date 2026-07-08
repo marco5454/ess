@@ -3,28 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
+import '../../features/members/data/local/members_dao.dart';
 import '../db/app_database.dart';
 import '../db/app_database_provider.dart';
 
 /// Orchestrates the client's copy of the server tables.
 ///
-/// Phase 2a scope (this file): a single "seed everything" pull that runs
-/// after login. Called once on cold-start when we already have a session,
-/// and once whenever a fresh sign-in happens. Later phases will layer on
-/// realtime writes, incremental pulls, and the outbox drain.
+/// Two responsibilities:
 ///
-/// The pull is intentionally naive: it fetches all rows and upserts each one.
-/// The app is single-ward and volumes are small (thousands of rows at most),
-/// so this pays for itself in simplicity.
+///   * **Seed** — a one-shot `select *` per server table on login, mirrored
+///     into the local Drift DB via each feature's DAO. Volumes are small
+///     (single ward, thousands of rows at most) so we favor simplicity over
+///     incremental strategies.
+///   * **Realtime** — long-lived Supabase realtime subscriptions per table
+///     that upsert (or delete) rows into Drift as the server emits changes.
+///     Screens watch the local DB so any device's edits propagate here
+///     automatically.
+///
+/// Local optimistic writes and the outbox drain arrive in Phase 3.
 class SyncService {
-  SyncService({required this.db, required this.client});
+  SyncService({
+    required this.db,
+    required this.client,
+    required this.membersDao,
+  });
 
   final AppDatabase db;
   final SupabaseClient client;
+  final MembersDao membersDao;
 
   static const _keyLastPullMembers = 'last_pull.members';
   static const _keyLastPullCallings = 'last_pull.callings';
   static const _keyLastPullCallingEvents = 'last_pull.calling_events';
+
+  RealtimeChannel? _membersChannel;
 
   /// Pulls every visible row from the three server tables and mirrors them
   /// into the local database. Safe to call repeatedly — inserts use
@@ -43,35 +55,60 @@ class SyncService {
     await _pullCallingEvents();
   }
 
+  /// Subscribe to server row changes and mirror them into Drift.
+  ///
+  /// Idempotent: calling `startRealtime` twice reuses existing channels.
+  /// Call [stopRealtime] on sign-out.
+  Future<void> startRealtime() async {
+    _membersChannel ??= _subscribeMembers();
+  }
+
+  /// Tear down all realtime subscriptions. Called on sign-out and by the
+  /// service disposer.
+  Future<void> stopRealtime() async {
+    final ch = _membersChannel;
+    _membersChannel = null;
+    if (ch != null) {
+      await client.removeChannel(ch);
+    }
+  }
+
+  RealtimeChannel _subscribeMembers() {
+    return client
+        .channel('public:members')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'members',
+          callback: (payload) {
+            switch (payload.eventType) {
+              case PostgresChangeEvent.insert:
+              case PostgresChangeEvent.update:
+                final row = payload.newRecord;
+                // ignore: discarded_futures
+                membersDao.upsertFromServerMap(row);
+                break;
+              case PostgresChangeEvent.delete:
+                final id = payload.oldRecord['id'] as String?;
+                if (id != null) {
+                  // ignore: discarded_futures
+                  membersDao.deleteById(id);
+                }
+                break;
+              case PostgresChangeEvent.all:
+                // Not emitted — the union sentinel used only for the filter.
+                break;
+            }
+          },
+        )
+        .subscribe();
+  }
+
   Future<void> _pullMembers() async {
     final rows = await client.from('members').select();
-    final now = DateTime.now().toUtc();
-    await db.batch((batch) {
-      for (final raw in (rows as List).cast<Map<String, dynamic>>()) {
-        batch.insert(
-          db.members,
-          MembersCompanion(
-            id: Value(raw['id'] as String),
-            firstName: Value(raw['first_name'] as String),
-            lastName: Value(raw['last_name'] as String),
-            preferredName: Value(raw['preferred_name'] as String?),
-            phone: Value(raw['phone'] as String?),
-            email: Value(raw['email'] as String?),
-            notes: Value(raw['notes'] as String?),
-            dateOfBirth: Value(_parseDate(raw['date_of_birth'])),
-            sex: Value(raw['sex'] as String?),
-            priesthoodOffice: Value(raw['priesthood_office'] as String?),
-            isActive: Value(raw['is_active'] as bool? ?? true),
-            createdAt:
-                Value(DateTime.parse(raw['created_at'] as String).toUtc()),
-            updatedAt:
-                Value(DateTime.parse(raw['updated_at'] as String).toUtc()),
-          ),
-          mode: InsertMode.insertOrReplace,
-        );
-      }
-    });
-    await _touchLastPull(_keyLastPullMembers, now);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    await membersDao.replaceAllFromServer(list);
+    await _touchLastPull(_keyLastPullMembers, DateTime.now().toUtc());
   }
 
   Future<void> _pullCallings() async {
@@ -145,13 +182,6 @@ class SyncService {
         );
   }
 
-  static DateTime? _parseDate(Object? value) {
-    if (value == null) return null;
-    if (value is DateTime) return value.toUtc();
-    if (value is String && value.isNotEmpty) return DateTime.parse(value);
-    return null;
-  }
-
   static DateTime? _parseTimestamp(Object? value) {
     if (value == null) return null;
     if (value is DateTime) return value.toUtc();
@@ -168,43 +198,57 @@ class SyncService {
 /// constructing the service directly so hot-reload keeps working.
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return SyncService(db: db, client: Supabase.instance.client);
+  final service = SyncService(
+    db: db,
+    client: Supabase.instance.client,
+    membersDao: MembersDao(db),
+  );
+  ref.onDispose(service.stopRealtime);
+  return service;
 });
 
-/// Fire-and-forget provider: runs a seed sync whenever the user becomes
-/// authenticated. Intended to be watched once at app startup (see
-/// `BishopricTrackerApp.build`).
+/// Fire-and-forget provider: seeds + starts realtime whenever the user
+/// becomes authenticated; tears realtime down on sign-out. Intended to be
+/// watched once at app startup (see `BishopricTrackerApp.build`).
 ///
-/// Uses `ref.listen` rather than `ref.watch` on auth so we react to the
-/// transition (unauthenticated -> authenticated) rather than every rebuild.
 /// Seed errors are swallowed with a debug log — a failed initial pull is
-/// non-fatal because Phase 2 screens still read live from Supabase, and later
-/// phases will add proper retry/reconciliation.
-final _seedOnLoginProvider = Provider<void>((ref) {
+/// non-fatal because the realtime subscription will still populate rows as
+/// they change, and later phases will add proper retry/reconciliation.
+final _syncLifecycleProvider = Provider<void>((ref) {
   // Prime once on first construction if we already have a session
   // (cold-start with cached auth).
   final initiallyAuthed = ref.read(isAuthenticatedProvider);
   if (initiallyAuthed) {
-    _kickSeed(ref);
+    _bringUp(ref);
   }
   ref.listen<bool>(isAuthenticatedProvider, (previous, next) {
     if (next && !(previous ?? false)) {
-      _kickSeed(ref);
+      _bringUp(ref);
+    } else if (!next && (previous ?? false)) {
+      _tearDown(ref);
     }
   });
 });
 
-void _kickSeed(Ref ref) {
+void _bringUp(Ref ref) {
   final sync = ref.read(syncServiceProvider);
   // Deliberately not awaited; this is a background side effect.
   // ignore: discarded_futures
   sync.seed().catchError((Object err, StackTrace st) {
-    // Non-fatal; screens still read live from Supabase in Phase 2.
+    // Non-fatal; realtime will still deliver ongoing changes.
     // A structured logger will replace this in a later phase.
     // ignore: avoid_print
     print('SyncService.seed() failed: $err');
   });
+  // ignore: discarded_futures
+  sync.startRealtime();
+}
+
+void _tearDown(Ref ref) {
+  final sync = ref.read(syncServiceProvider);
+  // ignore: discarded_futures
+  sync.stopRealtime();
 }
 
 /// Public re-export so `main.dart` can watch it to activate the listener.
-final seedOnLoginProvider = _seedOnLoginProvider;
+final seedOnLoginProvider = _syncLifecycleProvider;
