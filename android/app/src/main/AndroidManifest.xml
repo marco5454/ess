@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for Supabase network calls (auth, PostgREST, realtime) in
+         release builds. The debug manifest also declares this permission for
+         Flutter's tooling, but release builds only merge from src/main. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="Bishopric Tracker"
         android:name="${applicationName}"
