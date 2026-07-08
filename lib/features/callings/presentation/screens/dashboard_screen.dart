@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/motion/skeletons.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_icon.dart';
 import '../../../../core/theme/chapel_theme.dart';
@@ -38,7 +39,10 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(allEventsStreamProvider);
         },
         child: countsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: DashboardSkeleton(),
+          ),
           error: (e, _) => ListView(
             children: [
               const SizedBox(height: 120),

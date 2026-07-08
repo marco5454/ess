@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/motion/skeletons.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/state_chip.dart';
 import '../../../callings/domain/entities/calling_event.dart';
@@ -45,7 +46,10 @@ class MemberDetailScreen extends ConsumerWidget {
           ref.invalidate(allEventsStreamProvider);
         },
         child: memberAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: MemberDetailSkeleton(),
+          ),
           error: (e, _) => ListView(
             children: [
               const SizedBox(height: 120),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/motion/motion.dart';
+import '../../../../core/motion/skeletons.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../domain/entities/member.dart';
@@ -116,9 +118,11 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
                   Center(
                     child: Padding(
                       padding: EdgeInsets.all(24),
-                      child: Text(
-                        'No members yet.\nTap + to add one.',
-                        textAlign: TextAlign.center,
+                      child: FadeSlideIn(
+                        child: Text(
+                          'No members yet.\nTap + to add one.',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
@@ -133,9 +137,11 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No members match "${_searchController.text}".',
-                        textAlign: TextAlign.center,
+                      child: FadeSlideIn(
+                        child: Text(
+                          'No members match "${_searchController.text}".',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
@@ -153,7 +159,7 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
                     m.priesthoodOffice!,
                   if (m.email != null && m.email!.isNotEmpty) m.email!,
                 ];
-                return ListTile(
+                final tile = ListTile(
                   title: Text(m.sortName),
                   subtitle: subtitleParts.isEmpty
                       ? null
@@ -161,18 +167,28 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(AppRoutes.memberDetail(m.id)),
                 );
+                final staggerIndex = index.clamp(0, 12);
+                return FadeSlideIn(
+                  delay: Duration(milliseconds: 25 * staggerIndex),
+                  child: tile,
+                );
               },
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: MembersListSkeleton(),
+          ),
           error: (error, _) => ListView(
             children: [
               const SizedBox(height: 120),
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('Failed to load members:\n$error',
-                      textAlign: TextAlign.center),
+                  child: FadeSlideIn(
+                    child: Text('Failed to load members:\n$error',
+                        textAlign: TextAlign.center),
+                  ),
                 ),
               ),
             ],

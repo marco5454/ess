@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/callings/presentation/screens/dashboard_screen.dart';
 import '../../features/callings/presentation/screens/summary_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
+import '../motion/motion.dart';
 import '../sync/connectivity_service.dart';
 import '../sync/outbox_dao.dart';
 import '../sync/outbox_providers.dart';
@@ -33,20 +34,24 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const _SyncStatusStrip(),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: const [
-                SummaryScreen(),
-                DashboardScreen(),
-                MembersListScreen(),
-              ],
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Column(
+          children: [
+            const _SyncStatusStrip(),
+            Expanded(
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  SummaryScreen(),
+                  DashboardScreen(),
+                  MembersListScreen(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -92,25 +97,60 @@ class _SyncStatusStrip extends ConsumerWidget {
     final pendingAsync = ref.watch(_pendingOutboxCountProvider);
     final pending = pendingAsync.value ?? 0;
 
-    if (!isOffline && pending == 0) {
-      return const SizedBox.shrink();
-    }
-
+    // Animate the strip's height as banners appear/disappear so it slides
+    // down smoothly rather than popping in.
     return Material(
       color: Colors.transparent,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (isOffline) const _OfflineBanner(),
-          if (pending > 0) _PendingBanner(count: pending),
-        ],
+      child: AnimatedSize(
+        duration: MotionDurations.medium,
+        curve: MotionCurves.enter,
+        alignment: Alignment.topCenter,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedSwitcher(
+              duration: MotionDurations.medium,
+              switchInCurve: MotionCurves.enter,
+              switchOutCurve: MotionCurves.exit,
+              transitionBuilder: _slideFadeVertical,
+              child: isOffline
+                  ? const _OfflineBanner(key: ValueKey('offline'))
+                  : const SizedBox.shrink(key: ValueKey('offline-empty')),
+            ),
+            AnimatedSwitcher(
+              duration: MotionDurations.medium,
+              switchInCurve: MotionCurves.enter,
+              switchOutCurve: MotionCurves.exit,
+              transitionBuilder: _slideFadeVertical,
+              child: pending > 0
+                  ? _PendingBanner(
+                      key: ValueKey('pending-$pending'),
+                      count: pending,
+                    )
+                  : const SizedBox.shrink(key: ValueKey('pending-empty')),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+Widget _slideFadeVertical(Widget child, Animation<double> animation) {
+  final offset = Tween<Offset>(
+    begin: const Offset(0, -0.35),
+    end: Offset.zero,
+  ).animate(animation);
+  return ClipRect(
+    child: SlideTransition(
+      position: offset,
+      child: FadeTransition(opacity: animation, child: child),
+    ),
+  );
+}
+
 class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
+  const _OfflineBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +176,7 @@ class _OfflineBanner extends StatelessWidget {
 }
 
 class _PendingBanner extends StatelessWidget {
-  const _PendingBanner({required this.count});
+  const _PendingBanner({super.key, required this.count});
 
   final int count;
 

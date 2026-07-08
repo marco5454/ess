@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/motion/motion.dart';
+import '../../../../core/motion/skeletons.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/chapel_icon.dart';
@@ -110,7 +112,10 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
               _NeedsAttentionTab(rows: rows, threshold: _staleThreshold),
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: SummarySkeleton(),
+          ),
           error: (error, _) => ListView(
             children: [
               const SizedBox(height: 120),
@@ -179,18 +184,32 @@ class _ByOrganizationTab extends StatelessWidget {
 
     return ListView(
       children: [
-        for (final key in orderedKeys) ...[
-          _SectionHeader(
-            title: key == _unassignedKey ? _unassignedLabel : key,
-            count: groups[key]!.length,
-          ),
-          for (final row in _sortRows(groups[key]!))
-            _CallingRow(row: row, showOrganization: false),
-          const SizedBox(height: 8),
-        ],
+        for (final entry in _flatten(orderedKeys, groups)) entry,
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  List<Widget> _flatten(
+      List<String> orderedKeys, Map<String, List<CallingSummaryRow>> groups) {
+    final out = <Widget>[];
+    var i = 0;
+    for (final key in orderedKeys) {
+      out.add(_SectionHeader(
+        title: key == _unassignedKey ? _unassignedLabel : key,
+        count: groups[key]!.length,
+      ));
+      for (final row in _sortRows(groups[key]!)) {
+        final staggerIndex = i.clamp(0, 12);
+        out.add(FadeSlideIn(
+          delay: Duration(milliseconds: 25 * staggerIndex),
+          child: _CallingRow(row: row, showOrganization: false),
+        ));
+        i++;
+      }
+      out.add(const SizedBox(height: 8));
+    }
+    return out;
   }
 
   List<CallingSummaryRow> _sortRows(List<CallingSummaryRow> rows) {
@@ -257,7 +276,11 @@ class _NeedsAttentionTab extends StatelessWidget {
           title: 'Stalled in pipeline (${threshold.inDays}+ days)',
           count: stale.length,
         ),
-        for (final row in stale) _CallingRow(row: row, showOrganization: true),
+        for (var i = 0; i < stale.length; i++)
+          FadeSlideIn(
+            delay: Duration(milliseconds: 25 * i.clamp(0, 12)),
+            child: _CallingRow(row: stale[i], showOrganization: true),
+          ),
         const SizedBox(height: 24),
       ],
     );
