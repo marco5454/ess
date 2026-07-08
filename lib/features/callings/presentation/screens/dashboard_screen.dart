@@ -31,6 +31,13 @@ class DashboardScreen extends ConsumerWidget {
           child: ChapelIcon(size: 24),
         ),
         title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => context.push(AppRoutes.about),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {

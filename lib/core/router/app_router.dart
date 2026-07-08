@@ -12,6 +12,7 @@ import '../../features/callings/presentation/screens/calling_detail_screen.dart'
 import '../../features/callings/presentation/screens/callings_by_state_screen.dart';
 import '../../features/callings/presentation/screens/edit_calling_screen.dart';
 import '../../features/callings/presentation/screens/record_calling_event_screen.dart';
+import '../../features/legal/presentation/screens/about_screen.dart';
 import '../../features/members/presentation/screens/add_member_screen.dart';
 import '../../features/members/presentation/screens/edit_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
@@ -80,6 +81,7 @@ class AppRoutes {
 
   static const home = '/';
   static const login = '/login';
+  static const about = '/about';
   static const adminInviteCodes = '/admin/invite-codes';
   static const adminUsers = '/admin/users';
   static const memberAdd = '/members/add';
@@ -155,10 +157,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthenticated = ref.read(isAuthenticatedProvider);
       final location = state.matchedLocation;
-      final isPublic = location == AppRoutes.login;
+      // Public routes are reachable whether or not the user is signed in.
+      // `/about` is public so the disclaimer / legal notice is readable
+      // from the login screen.
+      final isPublic =
+          location == AppRoutes.login || location == AppRoutes.about;
 
       if (!isAuthenticated && !isPublic) return AppRoutes.login;
-      if (isAuthenticated && isPublic) return AppRoutes.home;
+      if (isAuthenticated && location == AppRoutes.login) {
+        return AppRoutes.home;
+      }
       return null;
     },
     routes: [
@@ -237,6 +245,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.login,
         pageBuilder: (_, state) =>
             _rootPage(state: state, child: const LoginScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AboutScreen()),
       ),
       GoRoute(
         path: AppRoutes.adminInviteCodes,

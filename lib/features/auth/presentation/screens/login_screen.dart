@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/legal/legal_text.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_icon.dart';
 import '../../../../core/theme/chapel_theme.dart';
 
@@ -71,6 +74,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     isSubmitting: _isSubmitting,
                     onSignIn: _signIn,
                   ),
+                  const SizedBox(height: 24),
+                  const _DisclaimerFooter(),
                 ],
               ),
             ),
@@ -186,6 +191,46 @@ class _SignInCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Fine-print footer shown below the sign-in card. Communicates the
+/// unaffiliation notice at a glance and links to the full About / legal
+/// screen for the complete disclaimer, privacy note, and no-warranty
+/// clause.
+class _DisclaimerFooter extends StatelessWidget {
+  const _DisclaimerFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseStyle = theme.textTheme.bodySmall?.copyWith(
+      color: ChapelPalette.inkSoft,
+      height: 1.4,
+    );
+    return Column(
+      children: [
+        Text(
+          LegalText.shortUnaffiliation,
+          textAlign: TextAlign.center,
+          style: baseStyle,
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => context.push(AppRoutes.about),
+          style: TextButton.styleFrom(
+            foregroundColor: ChapelPalette.navy,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: const Text('About & disclaimer'),
+        ),
+      ],
     );
   }
 }

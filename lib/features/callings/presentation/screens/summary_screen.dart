@@ -72,6 +72,11 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
         ),
         title: const Text('Ward summary'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => context.push(AppRoutes.about),
+          ),
           if (isAdmin) ...[
             IconButton(
               icon: const Icon(Icons.people_alt_outlined),

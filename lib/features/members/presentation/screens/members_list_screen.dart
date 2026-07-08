@@ -63,6 +63,11 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
         title: const Text('Members'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => context.push(AppRoutes.about),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
             onPressed: () => performSignOut(ref),
