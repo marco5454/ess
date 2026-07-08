@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher-icon adaptive background (used by ic_launcher.xml). -->
+    <color name="ic_launcher_background">#2E4057</color>
+
+    <!-- Splash background color. Matches ChapelPalette.navy so the OS-side
+         launch screen visually continues into the Flutter-drawn login hero. -->
+    <color name="chapel_navy">#2E4057</color>
+</resources>

@@ -82,6 +82,25 @@ dev_dependencies:
   drift_dev: 2.34.0
   build_runner: ^2.4.13
 
+  # Bakes the branding/*.png masters into the platform-specific
+  # launcher icon sets (mipmap-*/ic_launcher.png on Android and
+  # Assets.xcassets/AppIcon.appiconset/*.png on iOS). Run with
+  # `dart run flutter_launcher_icons` any time the master PNGs
+  # under branding/ change.
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher-icon generator config. See:
+# https://pub.dev/packages/flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "branding/icon-1024.png"
+  # Android 8+ adaptive-icon layers. The foreground PNG is already
+  # padded to the 66% safe zone so the OS mask cannot clip the book.
+  adaptive_icon_background: "#2E4057"
+  adaptive_icon_foreground: "branding/icon-adaptive-fg-1024.png"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
