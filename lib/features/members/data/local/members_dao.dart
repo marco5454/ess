@@ -89,6 +89,56 @@ class MembersDao {
     });
   }
 
+  /// Insert a locally-authored row (from a user action while online or
+  /// offline). The caller has already generated the `id` and the timestamps
+  /// are synthesized here. `isActive` defaults to true.
+  ///
+  /// Written with `insertOnConflictUpdate` so a duplicate id from a rapid
+  /// double-tap or a stale realtime echo doesn't crash.
+  Future<void> insertLocal(Member member) {
+    return _db.into(_db.members).insertOnConflictUpdate(
+          MembersCompanion.insert(
+            id: member.id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            preferredName: Value(member.preferredName),
+            phone: Value(member.phone),
+            email: Value(member.email),
+            notes: Value(member.notes),
+            dateOfBirth: Value(member.dateOfBirth),
+            sex: Value(member.sex),
+            priesthoodOffice: Value(member.priesthoodOffice),
+            isActive: Value(member.isActive),
+            createdAt: member.createdAt,
+            updatedAt: member.updatedAt,
+          ),
+        );
+  }
+
+  /// Apply a locally-authored update to an existing row.
+  ///
+  /// Every column is written unconditionally, mirroring the semantics of the
+  /// PostgREST `update` call: blank optional values become `null`. Timestamps
+  /// come from the caller (typically `updatedAt = DateTime.now().toUtc()`).
+  Future<void> updateLocal(Member member) {
+    return (_db.update(_db.members)..where((m) => m.id.equals(member.id)))
+        .write(
+      MembersCompanion(
+        firstName: Value(member.firstName),
+        lastName: Value(member.lastName),
+        preferredName: Value(member.preferredName),
+        phone: Value(member.phone),
+        email: Value(member.email),
+        notes: Value(member.notes),
+        dateOfBirth: Value(member.dateOfBirth),
+        sex: Value(member.sex),
+        priesthoodOffice: Value(member.priesthoodOffice),
+        isActive: Value(member.isActive),
+        updatedAt: Value(member.updatedAt),
+      ),
+    );
+  }
+
   /// Hard-delete used when the server realtime stream reports a row was
   /// removed. Callers must be sure the row is truly gone server-side —
   /// members currently never soft-delete (they use `is_active=false`), but

@@ -44,6 +44,9 @@ dependencies:
   drift: ^2.34.1
   drift_flutter: ^0.3.0
 
+  # Client-side UUID v4 generation for outbox op_ids and offline row PKs.
+  uuid: ^4.5.1
+
 # Compile SQLite from the amalgamation source we vendor at third_party/sqlite/sqlite3.c
 # instead of downloading a precompiled .so from GitHub (the default behavior of the
 # `sqlite3` package). Doing so makes builds work in network-restricted environments

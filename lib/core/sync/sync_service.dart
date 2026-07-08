@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io' show SocketException;
+
 import 'package:drift/drift.dart' show InsertMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +10,8 @@ import '../../features/callings/data/local/callings_dao.dart';
 import '../../features/members/data/local/members_dao.dart';
 import '../db/app_database.dart';
 import '../db/app_database_provider.dart';
+import 'outbox_dao.dart';
+import 'outbox_pusher.dart';
 
 /// Orchestrates the client's copy of the server tables.
 ///
@@ -28,12 +33,16 @@ class SyncService {
     required this.client,
     required this.membersDao,
     required this.callingsDao,
+    required this.outboxDao,
+    required this.outboxPusher,
   });
 
   final AppDatabase db;
   final SupabaseClient client;
   final MembersDao membersDao;
   final CallingsDao callingsDao;
+  final OutboxDao outboxDao;
+  final OutboxPusher outboxPusher;
 
   static const _keyLastPullMembers = 'last_pull.members';
   static const _keyLastPullCallings = 'last_pull.callings';
@@ -209,6 +218,41 @@ class SyncService {
           mode: InsertMode.insertOrReplace,
         );
   }
+
+  /// Attempt to push every pending outbox entry to Supabase in FIFO order.
+  ///
+  /// Concurrency-safe: only one drain runs at a time; a second call while
+  /// a drain is in progress awaits the same future. Aborts the batch (but
+  /// keeps entries in the queue) as soon as we hit something that looks
+  /// like a network failure so we don't hammer a dead connection. Other
+  /// failures (server 400/403/etc.) are recorded on the entry and the
+  /// drain continues.
+  Future<void> drainOutbox() {
+    return _drain ??= _doDrain().whenComplete(() => _drain = null);
+  }
+
+  Future<void>? _drain;
+
+  Future<void> _doDrain() async {
+    final pending = await outboxDao.listPending();
+    for (final entry in pending) {
+      try {
+        await outboxPusher.push(entry);
+        await outboxDao.deleteById(entry.id);
+      } on SocketException catch (e) {
+        // Network is down — stop the batch, leave the entry in the queue.
+        await outboxDao.recordAttempt(entry.id, e.toString());
+        return;
+      } on TimeoutException catch (e) {
+        await outboxDao.recordAttempt(entry.id, e.toString());
+        return;
+      } catch (e) {
+        // Server-side error (constraint violation, 4xx, etc.). Record and
+        // move on so one bad entry doesn't block the queue.
+        await outboxDao.recordAttempt(entry.id, e.toString());
+      }
+    }
+  }
 }
 
 /// Riverpod handle for [SyncService].
@@ -217,11 +261,14 @@ class SyncService {
 /// constructing the service directly so hot-reload keeps working.
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(appDatabaseProvider);
+  final client = Supabase.instance.client;
   final service = SyncService(
     db: db,
-    client: Supabase.instance.client,
+    client: client,
     membersDao: MembersDao(db),
     callingsDao: CallingsDao(db),
+    outboxDao: OutboxDao(db),
+    outboxPusher: OutboxPusher(client: client),
   );
   ref.onDispose(service.stopRealtime);
   return service;
@@ -262,6 +309,11 @@ void _bringUp(Ref ref) {
   });
   // ignore: discarded_futures
   sync.startRealtime();
+  // Best-effort drain: any writes made while offline (or that failed to
+  // flush on the previous session) go out here. Errors are handled inside
+  // the drainer; nothing to catch.
+  // ignore: discarded_futures
+  sync.drainOutbox();
 }
 
 void _tearDown(Ref ref) {

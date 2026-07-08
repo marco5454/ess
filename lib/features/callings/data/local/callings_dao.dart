@@ -195,6 +195,81 @@ class CallingsDao {
     return (_db.delete(_db.callingEvents)..where((e) => e.id.equals(id))).go();
   }
 
+  // -------------------------------------------------------------------------
+  // Locally-authored writes (from user actions on this device)
+
+  /// Insert a locally-authored calling row. Caller has already generated the
+  /// id and timestamps.
+  Future<void> insertCallingLocal(Calling calling) {
+    return _db.into(_db.callings).insertOnConflictUpdate(
+          CallingsCompanion.insert(
+            id: calling.id,
+            memberId: calling.memberId,
+            title: calling.title,
+            organization: Value(calling.organization),
+            notes: Value(calling.notes),
+            createdAt: calling.createdAt,
+            updatedAt: calling.updatedAt,
+            deletedAt: const Value(null),
+          ),
+        );
+  }
+
+  /// Apply a locally-authored update to an existing calling row.
+  Future<void> updateCallingLocal(Calling calling) {
+    return (_db.update(_db.callings)..where((c) => c.id.equals(calling.id)))
+        .write(
+      CallingsCompanion(
+        title: Value(calling.title),
+        organization: Value(calling.organization),
+        notes: Value(calling.notes),
+        updatedAt: Value(calling.updatedAt),
+      ),
+    );
+  }
+
+  /// Insert a locally-authored event row. Caller has already generated the
+  /// id and timestamps. `updatedAt` is set equal to `createdAt` for new rows.
+  Future<void> insertEventLocal(CallingEvent event) {
+    return _db.into(_db.callingEvents).insertOnConflictUpdate(
+          CallingEventsCompanion.insert(
+            id: event.id,
+            callingId: event.callingId,
+            state: event.state.wireName,
+            occurredAt: event.occurredAt,
+            notes: Value(event.notes),
+            recordedBy: Value(event.recordedBy),
+            createdAt: event.createdAt,
+            updatedAt: event.createdAt,
+            deletedAt: const Value(null),
+          ),
+        );
+  }
+
+  /// Soft-delete a calling row locally by stamping `deletedAt`.
+  ///
+  /// The row stays in the table but drops out of [watchAllCallings]. Used
+  /// when the user deletes offline (or online before the server responds).
+  Future<int> softDeleteCallingLocal(String id, DateTime deletedAt) {
+    return (_db.update(_db.callings)..where((c) => c.id.equals(id))).write(
+      CallingsCompanion(
+        deletedAt: Value(deletedAt),
+        updatedAt: Value(deletedAt),
+      ),
+    );
+  }
+
+  /// Soft-delete an event row locally.
+  Future<int> softDeleteEventLocal(String id, DateTime deletedAt) {
+    return (_db.update(_db.callingEvents)..where((e) => e.id.equals(id)))
+        .write(
+      CallingEventsCompanion(
+        deletedAt: Value(deletedAt),
+        updatedAt: Value(deletedAt),
+      ),
+    );
+  }
+
   /// Wipes every calling and event row. Called on sign-out.
   Future<void> deleteAll() async {
     await _db.delete(_db.callingEvents).go();

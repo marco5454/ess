@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/db/app_database_provider.dart';
+import '../../../../core/sync/outbox_providers.dart';
+import '../../../../core/sync/sync_service.dart';
 import '../../../members/domain/entities/member.dart';
 import '../../../members/presentation/providers/members_providers.dart';
 import '../../data/local/callings_dao.dart';
@@ -21,6 +23,8 @@ final callingsRepositoryProvider = Provider<CallingsRepository>((ref) {
   return CallingsRepository(
     client: supabase,
     dao: ref.watch(callingsDaoProvider),
+    outbox: ref.watch(outboxDaoProvider),
+    kickDrain: () => ref.read(syncServiceProvider).drainOutbox(),
   );
 });
 

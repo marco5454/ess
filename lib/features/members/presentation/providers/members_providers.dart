@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/config/supabase_config.dart';
 import '../../../../core/db/app_database_provider.dart';
+import '../../../../core/sync/outbox_providers.dart';
+import '../../../../core/sync/sync_service.dart';
 import '../../data/local/members_dao.dart';
 import '../../data/repositories/members_repository.dart';
 import '../../domain/entities/member.dart';
@@ -15,8 +16,9 @@ final membersDaoProvider = Provider<MembersDao>((ref) {
 /// Provides the singleton [MembersRepository].
 final membersRepositoryProvider = Provider<MembersRepository>((ref) {
   return MembersRepository(
-    client: supabase,
     dao: ref.watch(membersDaoProvider),
+    outbox: ref.watch(outboxDaoProvider),
+    kickDrain: () => ref.read(syncServiceProvider).drainOutbox(),
   );
 });
 

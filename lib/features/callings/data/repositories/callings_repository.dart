@@ -1,12 +1,16 @@
 // ignore_for_file: prefer_initializing_formals
 //
-// The private-underscore backing fields (`_client`, `_dao`) work better as
-// plain fields with an explicit initializer list than as public
-// initializing-formal parameters, since the ctor is called with named args
-// and the linter can't reconcile that with private field names.
+// The private-underscore backing fields work better as plain fields with an
+// explicit initializer list than as public initializing-formal parameters,
+// since the ctor is called with named args and the linter can't reconcile
+// that with private field names.
+
+import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../../core/sync/outbox_dao.dart';
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
 import '../../domain/entities/calling_state.dart';
@@ -15,33 +19,40 @@ import '../local/callings_dao.dart';
 /// Data-layer facade over the local Drift copy of `callings` and
 /// `calling_events`, with pass-through writes to Supabase.
 ///
-/// Reads (list / watch / get) go against the local database — that's the
-/// single-source-of-truth for the UI so screens keep working offline.
-/// Writes still round-trip to Supabase; on success the returned row is
-/// mirrored locally so the UI updates immediately without waiting for the
-/// realtime echo. Local optimistic writes and an outbox drain arrive in
-/// Phase 3.
+/// **Local-first** since Phase 3: every mutation writes to the local Drift
+/// DB immediately (so the UI updates without waiting for the network), then
+/// enqueues an outbox entry that the sync worker will push to Supabase.
+/// When the realtime echo arrives it authoritative-overwrites the local row
+/// via the DAO's `upsert...FromServerMap`.
+///
+/// Deletes are represented locally as *soft* deletes (a `deleted_at`
+/// tombstone) so they disappear from the UI immediately without discarding
+/// the row that the outbox still needs to reference. The server-side push,
+/// however, is still a HARD DELETE — this keeps the drainer compatible with
+/// the initial schema until the phase-1 server migration is applied.
 class CallingsRepository {
   CallingsRepository({
     required SupabaseClient client,
     required CallingsDao dao,
+    required OutboxDao outbox,
+    required Future<void> Function() kickDrain,
+    Uuid? uuid,
   })  : _client = client,
-        _dao = dao;
+        _dao = dao,
+        _outbox = outbox,
+        _kickDrain = kickDrain,
+        _uuid = uuid ?? const Uuid();
 
   final SupabaseClient _client;
   final CallingsDao _dao;
-
-  static const _callings = 'callings';
-  static const _events = 'calling_events';
+  final OutboxDao _outbox;
+  final Future<void> Function() _kickDrain;
+  final Uuid _uuid;
 
   // ---------------------------------------------------------------------------
   // Reads (local, live)
 
   /// All callings for [memberId] paired with each calling's most recent event.
-  ///
-  /// One-shot: takes the current snapshot from the live DB streams and joins
-  /// callings + events in-memory. Callers that want live updates should watch
-  /// the streams directly via the providers layer.
   Future<List<CallingWithLatestEvent>> listCallingsForMember(
     String memberId,
   ) async {
@@ -79,10 +90,6 @@ class CallingsRepository {
   }
 
   /// All callings (ward-wide) paired with each calling's most recent event.
-  ///
-  /// One-shot snapshot equivalent to the old two-query fold; used by list
-  /// screens that don't want to watch. The join is done in-memory over the
-  /// current DB state.
   Future<List<CallingWithLatestEvent>> listAllWithLatestEvent() async {
     final callings = await _dao.watchAllCallings().first;
     if (callings.isEmpty) return const [];
@@ -106,44 +113,105 @@ class CallingsRepository {
   Stream<List<CallingEvent>> watchAllEvents() => _dao.watchAllEvents();
 
   // ---------------------------------------------------------------------------
-  // Writes (round-trip to Supabase, then mirror locally)
+  // Writes (local-first + outbox)
 
   /// Create a new calling and its initial `selected` event.
   ///
-  /// Not transactional across the two tables — if the event insert fails, an
-  /// orphan calling row remains. Acceptable trade-off for Phase 2; can be
-  /// upgraded to a Postgres function later if it becomes a real problem.
+  /// Both rows are written locally in a Drift transaction, then two outbox
+  /// entries are enqueued (calling insert, event insert) so they are pushed
+  /// in order.
   Future<Calling> addCalling(NewCalling input) async {
-    final callingRow = await _client
-        .from(_callings)
-        .insert(input.toInsert())
-        .select()
-        .single();
-    final calling = Calling.fromMap(callingRow);
-    await _dao.upsertCallingFromServerMap(callingRow);
-
     final now = DateTime.now().toUtc();
-    final eventRow = await _client.from(_events).insert({
-      'calling_id': calling.id,
+    final callingId = _uuid.v4();
+    final eventId = _uuid.v4();
+
+    final calling = Calling(
+      id: callingId,
+      memberId: input.memberId,
+      title: input.title.trim(),
+      organization: _blankToNull(input.organization),
+      notes: _blankToNull(input.notes),
+      createdAt: now,
+      updatedAt: now,
+    );
+    final event = CallingEvent(
+      id: eventId,
+      callingId: callingId,
+      state: CallingState.selected,
+      occurredAt: now,
+      notes: null,
+      recordedBy: _client.auth.currentUser?.id,
+      createdAt: now,
+    );
+
+    await _dao.insertCallingLocal(calling);
+    await _dao.insertEventLocal(event);
+
+    final callingPayload = <String, dynamic>{
+      'id': callingId,
+      ...input.toInsert(),
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    };
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.calling,
+      entityId: callingId,
+      operation: OutboxOp.insert,
+      payloadJson: jsonEncode(callingPayload),
+    );
+
+    final eventPayload = <String, dynamic>{
+      'id': eventId,
+      'calling_id': callingId,
       'state': CallingState.selected.wireName,
       'occurred_at': now.toIso8601String(),
       'recorded_by': _client.auth.currentUser?.id,
-    }).select().single();
-    await _dao.upsertEventFromServerMap(eventRow);
+      'created_at': now.toIso8601String(),
+    };
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.callingEvent,
+      entityId: eventId,
+      operation: OutboxOp.insert,
+      payloadJson: jsonEncode(eventPayload),
+    );
 
+    _fireDrain();
     return calling;
   }
 
   /// Update a calling's descriptive fields. Does not touch state / events.
   Future<Calling> updateCalling(String id, CallingUpdate update) async {
-    final row = await _client
-        .from(_callings)
-        .update(update.toUpdate())
-        .eq('id', id)
-        .select()
-        .single();
-    await _dao.upsertCallingFromServerMap(row);
-    return Calling.fromMap(row);
+    final now = DateTime.now().toUtc();
+    final existing = await _dao.getCallingById(id);
+    if (existing == null) {
+      throw StateError('Calling $id not found in local database');
+    }
+    final calling = Calling(
+      id: id,
+      memberId: existing.memberId,
+      title: update.title.trim(),
+      organization: _blankToNull(update.organization),
+      notes: _blankToNull(update.notes),
+      createdAt: existing.createdAt,
+      updatedAt: now,
+    );
+    await _dao.updateCallingLocal(calling);
+
+    final payload = <String, dynamic>{
+      ...update.toUpdate(),
+      'updated_at': now.toIso8601String(),
+    };
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.calling,
+      entityId: id,
+      operation: OutboxOp.update,
+      payloadJson: jsonEncode(payload),
+    );
+    _fireDrain();
+    return calling;
   }
 
   /// Append a new state event to a calling's history.
@@ -154,40 +222,84 @@ class CallingsRepository {
     String? notes,
   }) async {
     final trimmedNotes = notes?.trim();
+    final now = DateTime.now().toUtc();
+    final eventId = _uuid.v4();
+    final recordedBy = _client.auth.currentUser?.id;
+
+    final event = CallingEvent(
+      id: eventId,
+      callingId: callingId,
+      state: state,
+      occurredAt: occurredAt.toUtc(),
+      notes: (trimmedNotes != null && trimmedNotes.isNotEmpty)
+          ? trimmedNotes
+          : null,
+      recordedBy: recordedBy,
+      createdAt: now,
+    );
+    await _dao.insertEventLocal(event);
+
     final payload = <String, dynamic>{
+      'id': eventId,
       'calling_id': callingId,
       'state': state.wireName,
       'occurred_at': occurredAt.toUtc().toIso8601String(),
-      'recorded_by': _client.auth.currentUser?.id,
+      'recorded_by': recordedBy,
+      'created_at': now.toIso8601String(),
       if (trimmedNotes != null && trimmedNotes.isNotEmpty)
         'notes': trimmedNotes,
     };
-    final row =
-        await _client.from(_events).insert(payload).select().single();
-    await _dao.upsertEventFromServerMap(row);
-    return CallingEvent.fromMap(row);
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.callingEvent,
+      entityId: eventId,
+      operation: OutboxOp.insert,
+      payloadJson: jsonEncode(payload),
+    );
+    _fireDrain();
+    return event;
   }
 
   /// Delete a single event by id.
   ///
-  /// NOTE: still a hard DELETE against the server so this works against the
-  /// initial schema (which lacked `deleted_at` on `calling_events`). The
-  /// phase-1 migration adds the column and Phase 3 will switch this to a
-  /// soft-delete + outbox flow. Locally we hard-delete on the realtime echo.
+  /// Local: soft-delete (stamps `deleted_at`) so it disappears from the UI
+  /// immediately. Server: enqueued as a delete op; the drainer issues a
+  /// hard DELETE until the phase-1 server migration is applied.
   Future<void> deleteEvent(String id) async {
-    await _client.from(_events).delete().eq('id', id);
-    await _dao.deleteEventById(id);
+    final now = DateTime.now().toUtc();
+    await _dao.softDeleteEventLocal(id, now);
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.callingEvent,
+      entityId: id,
+      operation: OutboxOp.delete,
+      payloadJson: '{}',
+    );
+    _fireDrain();
   }
 
-  /// Delete a calling by id.
-  ///
-  /// Hard DELETE server-side; associated `calling_events` rows are removed
-  /// via `ON DELETE CASCADE`. Same rationale as [deleteEvent] for keeping
-  /// this a hard delete for now.
+  /// Delete a calling by id. Same rules as [deleteEvent].
   Future<void> deleteCalling(String id) async {
-    await _client.from(_callings).delete().eq('id', id);
-    // Cascade locally too; the realtime DELETE payloads may or may not
-    // arrive quickly for the cascaded events.
-    await _dao.deleteCallingById(id);
+    final now = DateTime.now().toUtc();
+    await _dao.softDeleteCallingLocal(id, now);
+    await _outbox.enqueue(
+      opId: _uuid.v4(),
+      entityType: OutboxEntityType.calling,
+      entityId: id,
+      operation: OutboxOp.delete,
+      payloadJson: '{}',
+    );
+    _fireDrain();
+  }
+
+  void _fireDrain() {
+    // ignore: discarded_futures
+    _kickDrain();
+  }
+
+  static String? _blankToNull(String? value) {
+    if (value == null) return null;
+    final t = value.trim();
+    return t.isEmpty ? null : t;
   }
 }
