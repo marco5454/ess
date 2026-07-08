@@ -1,16 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/db/app_database_provider.dart';
 import '../../../members/domain/entities/member.dart';
 import '../../../members/presentation/providers/members_providers.dart';
+import '../../data/local/callings_dao.dart';
 import '../../data/repositories/callings_repository.dart';
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
 import '../../domain/entities/calling_state.dart';
 
+/// Provides the singleton [CallingsDao].
+final callingsDaoProvider = Provider<CallingsDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return CallingsDao(db);
+});
+
 /// Provides the singleton [CallingsRepository].
 final callingsRepositoryProvider = Provider<CallingsRepository>((ref) {
-  return CallingsRepository(supabase);
+  return CallingsRepository(
+    client: supabase,
+    dao: ref.watch(callingsDaoProvider),
+  );
 });
 
 /// Live ward-wide callings stream. Single upstream source; other providers

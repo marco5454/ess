@@ -1,54 +1,61 @@
+// ignore_for_file: prefer_initializing_formals
+//
+// The private-underscore backing fields (`_client`, `_dao`) work better as
+// plain fields with an explicit initializer list than as public
+// initializing-formal parameters, since the ctor is called with named args
+// and the linter can't reconcile that with private field names.
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
 import '../../domain/entities/calling_state.dart';
+import '../local/callings_dao.dart';
 
-/// Data-layer facade over the `callings` and `calling_events` Postgres tables.
+/// Data-layer facade over the local Drift copy of `callings` and
+/// `calling_events`, with pass-through writes to Supabase.
+///
+/// Reads (list / watch / get) go against the local database — that's the
+/// single-source-of-truth for the UI so screens keep working offline.
+/// Writes still round-trip to Supabase; on success the returned row is
+/// mirrored locally so the UI updates immediately without waiting for the
+/// realtime echo. Local optimistic writes and an outbox drain arrive in
+/// Phase 3.
 class CallingsRepository {
-  CallingsRepository(this._client);
+  CallingsRepository({
+    required SupabaseClient client,
+    required CallingsDao dao,
+  })  : _client = client,
+        _dao = dao;
 
   final SupabaseClient _client;
+  final CallingsDao _dao;
 
   static const _callings = 'callings';
   static const _events = 'calling_events';
 
+  // ---------------------------------------------------------------------------
+  // Reads (local, live)
+
   /// All callings for [memberId] paired with each calling's most recent event.
   ///
-  /// Ordered by calling `created_at` descending (newest first). The two-query
-  /// approach (callings, then events for that set) keeps things simple; a
-  /// single member's calling count is small.
+  /// One-shot: takes the current snapshot from the live DB streams and joins
+  /// callings + events in-memory. Callers that want live updates should watch
+  /// the streams directly via the providers layer.
   Future<List<CallingWithLatestEvent>> listCallingsForMember(
     String memberId,
   ) async {
-    final callingRows = await _client
-        .from(_callings)
-        .select()
-        .eq('member_id', memberId)
-        .order('created_at', ascending: false);
-
-    final callings = (callingRows as List)
-        .cast<Map<String, dynamic>>()
-        .map(Calling.fromMap)
+    final allCallings = await _dao.watchAllCallings().first;
+    final callings = allCallings
+        .where((c) => c.memberId == memberId)
         .toList(growable: false);
-
     if (callings.isEmpty) return const [];
 
-    final callingIds = callings.map((c) => c.id).toList(growable: false);
-    final eventRows = await _client
-        .from(_events)
-        .select()
-        .inFilter('calling_id', callingIds)
-        .order('occurred_at', ascending: false)
-        .order('created_at', ascending: false);
-
-    // First event we see per calling_id is the latest (thanks to the ordering).
+    final allEvents = await _dao.watchAllEvents().first;
     final latestByCalling = <String, CallingEvent>{};
-    for (final row in (eventRows as List).cast<Map<String, dynamic>>()) {
-      final event = CallingEvent.fromMap(row);
+    for (final event in allEvents) {
       latestByCalling.putIfAbsent(event.callingId, () => event);
     }
-
     return callings
         .map((c) => CallingWithLatestEvent(
               calling: c,
@@ -56,6 +63,50 @@ class CallingsRepository {
             ))
         .toList(growable: false);
   }
+
+  /// Fetch a single calling by id. Throws if not found locally.
+  Future<Calling> getCalling(String id) async {
+    final calling = await _dao.getCallingById(id);
+    if (calling == null) {
+      throw StateError('Calling $id not found in local database');
+    }
+    return calling;
+  }
+
+  /// All non-deleted events for a calling, newest first.
+  Future<List<CallingEvent>> listEventsForCalling(String callingId) {
+    return _dao.listEventsForCalling(callingId);
+  }
+
+  /// All callings (ward-wide) paired with each calling's most recent event.
+  ///
+  /// One-shot snapshot equivalent to the old two-query fold; used by list
+  /// screens that don't want to watch. The join is done in-memory over the
+  /// current DB state.
+  Future<List<CallingWithLatestEvent>> listAllWithLatestEvent() async {
+    final callings = await _dao.watchAllCallings().first;
+    if (callings.isEmpty) return const [];
+    final events = await _dao.watchAllEvents().first;
+    final latestByCalling = <String, CallingEvent>{};
+    for (final event in events) {
+      latestByCalling.putIfAbsent(event.callingId, () => event);
+    }
+    return callings
+        .map((c) => CallingWithLatestEvent(
+              calling: c,
+              latestEvent: latestByCalling[c.id],
+            ))
+        .toList(growable: false);
+  }
+
+  /// Live stream of every non-deleted calling row.
+  Stream<List<Calling>> watchAllCallings() => _dao.watchAllCallings();
+
+  /// Live stream of every non-deleted calling_events row.
+  Stream<List<CallingEvent>> watchAllEvents() => _dao.watchAllEvents();
+
+  // ---------------------------------------------------------------------------
+  // Writes (round-trip to Supabase, then mirror locally)
 
   /// Create a new calling and its initial `selected` event.
   ///
@@ -69,22 +120,18 @@ class CallingsRepository {
         .select()
         .single();
     final calling = Calling.fromMap(callingRow);
+    await _dao.upsertCallingFromServerMap(callingRow);
 
     final now = DateTime.now().toUtc();
-    await _client.from(_events).insert({
+    final eventRow = await _client.from(_events).insert({
       'calling_id': calling.id,
       'state': CallingState.selected.wireName,
       'occurred_at': now.toIso8601String(),
       'recorded_by': _client.auth.currentUser?.id,
-    });
+    }).select().single();
+    await _dao.upsertEventFromServerMap(eventRow);
 
     return calling;
-  }
-
-  /// Fetch a single calling by id.
-  Future<Calling> getCalling(String id) async {
-    final row = await _client.from(_callings).select().eq('id', id).single();
-    return Calling.fromMap(row);
   }
 
   /// Update a calling's descriptive fields. Does not touch state / events.
@@ -95,31 +142,11 @@ class CallingsRepository {
         .eq('id', id)
         .select()
         .single();
+    await _dao.upsertCallingFromServerMap(row);
     return Calling.fromMap(row);
   }
 
-  /// All events for a calling, newest first.
-  ///
-  /// Ordered by `occurred_at` desc, tie-broken by `created_at` desc — matches
-  /// the logic used to compute "current state".
-  Future<List<CallingEvent>> listEventsForCalling(String callingId) async {
-    final rows = await _client
-        .from(_events)
-        .select()
-        .eq('calling_id', callingId)
-        .order('occurred_at', ascending: false)
-        .order('created_at', ascending: false);
-    return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(CallingEvent.fromMap)
-        .toList(growable: false);
-  }
-
   /// Append a new state event to a calling's history.
-  ///
-  /// Caller is responsible for enforcing allowed transitions; the repo only
-  /// persists what it's told. `recorded_by` is filled from the current auth
-  /// user.
   Future<CallingEvent> addEvent({
     required String callingId,
     required CallingState state,
@@ -137,95 +164,30 @@ class CallingsRepository {
     };
     final row =
         await _client.from(_events).insert(payload).select().single();
+    await _dao.upsertEventFromServerMap(row);
     return CallingEvent.fromMap(row);
   }
 
   /// Delete a single event by id.
   ///
-  /// Used to undo a wrongly-recorded state transition. Callers should only
-  /// invoke this for the latest event on a calling; the repo itself does not
-  /// enforce that constraint.
+  /// NOTE: still a hard DELETE against the server so this works against the
+  /// initial schema (which lacked `deleted_at` on `calling_events`). The
+  /// phase-1 migration adds the column and Phase 3 will switch this to a
+  /// soft-delete + outbox flow. Locally we hard-delete on the realtime echo.
   Future<void> deleteEvent(String id) async {
     await _client.from(_events).delete().eq('id', id);
+    await _dao.deleteEventById(id);
   }
 
-  /// Delete a calling by id. Associated `calling_events` rows are removed via
-  /// the FK `ON DELETE CASCADE` on `calling_events.calling_id`.
+  /// Delete a calling by id.
+  ///
+  /// Hard DELETE server-side; associated `calling_events` rows are removed
+  /// via `ON DELETE CASCADE`. Same rationale as [deleteEvent] for keeping
+  /// this a hard delete for now.
   Future<void> deleteCalling(String id) async {
     await _client.from(_callings).delete().eq('id', id);
-  }
-
-  /// All callings (ward-wide) paired with each calling's most recent event.
-  ///
-  /// Used by the summary screen to build ward-level views. Two queries: pull
-  /// all callings, then all their events, then fold to latest-per-calling on
-  /// the client. Adequate for ward-scale data volumes; can be replaced with a
-  /// server-side view later if needed.
-  Future<List<CallingWithLatestEvent>> listAllWithLatestEvent() async {
-    final callingRows = await _client
-        .from(_callings)
-        .select()
-        .order('created_at', ascending: false);
-
-    final callings = (callingRows as List)
-        .cast<Map<String, dynamic>>()
-        .map(Calling.fromMap)
-        .toList(growable: false);
-
-    if (callings.isEmpty) return const [];
-
-    final callingIds = callings.map((c) => c.id).toList(growable: false);
-    final eventRows = await _client
-        .from(_events)
-        .select()
-        .inFilter('calling_id', callingIds)
-        .order('occurred_at', ascending: false)
-        .order('created_at', ascending: false);
-
-    final latestByCalling = <String, CallingEvent>{};
-    for (final row in (eventRows as List).cast<Map<String, dynamic>>()) {
-      final event = CallingEvent.fromMap(row);
-      latestByCalling.putIfAbsent(event.callingId, () => event);
-    }
-
-    return callings
-        .map((c) => CallingWithLatestEvent(
-              calling: c,
-              latestEvent: latestByCalling[c.id],
-            ))
-        .toList(growable: false);
-  }
-
-  /// Live stream of every calling row (ward-wide).
-  ///
-  /// RLS gates who sees what. Ordered newest-first client-side to match
-  /// [listCallingsForMember] / [listAllWithLatestEvent].
-  Stream<List<Calling>> watchAllCallings() {
-    return _client
-        .from(_callings)
-        .stream(primaryKey: ['id'])
-        .map(
-          (rows) => rows.map(Calling.fromMap).toList(growable: false)
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
-        );
-  }
-
-  /// Live stream of every calling_events row (ward-wide).
-  ///
-  /// Ordered newest-first (`occurred_at desc, created_at desc`) client-side —
-  /// matches the "current state = events.first" convention used across the
-  /// app. Consumers filter by `calling_id` client-side.
-  Stream<List<CallingEvent>> watchAllEvents() {
-    return _client
-        .from(_events)
-        .stream(primaryKey: ['id'])
-        .map(
-          (rows) => rows.map(CallingEvent.fromMap).toList(growable: false)
-            ..sort((a, b) {
-              final byOccurred = b.occurredAt.compareTo(a.occurredAt);
-              if (byOccurred != 0) return byOccurred;
-              return b.createdAt.compareTo(a.createdAt);
-            }),
-        );
+    // Cascade locally too; the realtime DELETE payloads may or may not
+    // arrive quickly for the cascaded events.
+    await _dao.deleteCallingById(id);
   }
 }

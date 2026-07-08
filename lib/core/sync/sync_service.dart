@@ -1,8 +1,9 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show InsertMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
+import '../../features/callings/data/local/callings_dao.dart';
 import '../../features/members/data/local/members_dao.dart';
 import '../db/app_database.dart';
 import '../db/app_database_provider.dart';
@@ -26,20 +27,24 @@ class SyncService {
     required this.db,
     required this.client,
     required this.membersDao,
+    required this.callingsDao,
   });
 
   final AppDatabase db;
   final SupabaseClient client;
   final MembersDao membersDao;
+  final CallingsDao callingsDao;
 
   static const _keyLastPullMembers = 'last_pull.members';
   static const _keyLastPullCallings = 'last_pull.callings';
   static const _keyLastPullCallingEvents = 'last_pull.calling_events';
 
   RealtimeChannel? _membersChannel;
+  RealtimeChannel? _callingsChannel;
+  RealtimeChannel? _callingEventsChannel;
 
   /// Pulls every visible row from the three server tables and mirrors them
-  /// into the local database. Safe to call repeatedly — inserts use
+  /// into the local database. Safe to call repeatedly — the DAO upserts use
   /// [InsertMode.insertOrReplace] so a re-pull is idempotent.
   ///
   /// Rows marked as soft-deleted on the server (`deleted_at IS NOT NULL`) are
@@ -61,15 +66,25 @@ class SyncService {
   /// Call [stopRealtime] on sign-out.
   Future<void> startRealtime() async {
     _membersChannel ??= _subscribeMembers();
+    _callingsChannel ??= _subscribeCallings();
+    _callingEventsChannel ??= _subscribeCallingEvents();
   }
 
   /// Tear down all realtime subscriptions. Called on sign-out and by the
   /// service disposer.
   Future<void> stopRealtime() async {
-    final ch = _membersChannel;
+    final channels = <RealtimeChannel?>[
+      _membersChannel,
+      _callingsChannel,
+      _callingEventsChannel,
+    ];
     _membersChannel = null;
-    if (ch != null) {
-      await client.removeChannel(ch);
+    _callingsChannel = null;
+    _callingEventsChannel = null;
+    for (final ch in channels) {
+      if (ch != null) {
+        await client.removeChannel(ch);
+      }
     }
   }
 
@@ -104,6 +119,66 @@ class SyncService {
         .subscribe();
   }
 
+  RealtimeChannel _subscribeCallings() {
+    return client
+        .channel('public:callings')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'callings',
+          callback: (payload) {
+            switch (payload.eventType) {
+              case PostgresChangeEvent.insert:
+              case PostgresChangeEvent.update:
+                final row = payload.newRecord;
+                // ignore: discarded_futures
+                callingsDao.upsertCallingFromServerMap(row);
+                break;
+              case PostgresChangeEvent.delete:
+                final id = payload.oldRecord['id'] as String?;
+                if (id != null) {
+                  // ignore: discarded_futures
+                  callingsDao.deleteCallingById(id);
+                }
+                break;
+              case PostgresChangeEvent.all:
+                break;
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  RealtimeChannel _subscribeCallingEvents() {
+    return client
+        .channel('public:calling_events')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'calling_events',
+          callback: (payload) {
+            switch (payload.eventType) {
+              case PostgresChangeEvent.insert:
+              case PostgresChangeEvent.update:
+                final row = payload.newRecord;
+                // ignore: discarded_futures
+                callingsDao.upsertEventFromServerMap(row);
+                break;
+              case PostgresChangeEvent.delete:
+                final id = payload.oldRecord['id'] as String?;
+                if (id != null) {
+                  // ignore: discarded_futures
+                  callingsDao.deleteEventById(id);
+                }
+                break;
+              case PostgresChangeEvent.all:
+                break;
+            }
+          },
+        )
+        .subscribe();
+  }
+
   Future<void> _pullMembers() async {
     final rows = await client.from('members').select();
     final list = (rows as List).cast<Map<String, dynamic>>();
@@ -113,82 +188,26 @@ class SyncService {
 
   Future<void> _pullCallings() async {
     final rows = await client.from('callings').select();
-    final now = DateTime.now().toUtc();
-    await db.batch((batch) {
-      for (final raw in (rows as List).cast<Map<String, dynamic>>()) {
-        batch.insert(
-          db.callings,
-          CallingsCompanion(
-            id: Value(raw['id'] as String),
-            memberId: Value(raw['member_id'] as String),
-            title: Value(raw['title'] as String),
-            organization: Value(raw['organization'] as String?),
-            notes: Value(raw['notes'] as String?),
-            createdAt:
-                Value(DateTime.parse(raw['created_at'] as String).toUtc()),
-            updatedAt:
-                Value(DateTime.parse(raw['updated_at'] as String).toUtc()),
-            deletedAt: Value(_parseTimestamp(raw['deleted_at'])),
-          ),
-          mode: InsertMode.insertOrReplace,
-        );
-      }
-    });
-    await _touchLastPull(_keyLastPullCallings, now);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    await callingsDao.replaceAllCallingsFromServer(list);
+    await _touchLastPull(_keyLastPullCallings, DateTime.now().toUtc());
   }
 
   Future<void> _pullCallingEvents() async {
     final rows = await client.from('calling_events').select();
-    final now = DateTime.now().toUtc();
-    await db.batch((batch) {
-      for (final raw in (rows as List).cast<Map<String, dynamic>>()) {
-        batch.insert(
-          db.callingEvents,
-          CallingEventsCompanion(
-            id: Value(raw['id'] as String),
-            callingId: Value(raw['calling_id'] as String),
-            state: Value(raw['state'] as String),
-            occurredAt:
-                Value(DateTime.parse(raw['occurred_at'] as String).toUtc()),
-            notes: Value(raw['notes'] as String?),
-            recordedBy: Value(raw['recorded_by'] as String?),
-            createdAt:
-                Value(DateTime.parse(raw['created_at'] as String).toUtc()),
-            // `updated_at` was added by the phase-1 server migration and is
-            // NOT NULL DEFAULT now(). If the migration hasn't been applied
-            // yet the column is missing — fall back to created_at so we can
-            // still seed against a legacy database during rollout.
-            updatedAt: Value(
-              DateTime.parse(
-                (raw['updated_at'] ?? raw['created_at']) as String,
-              ).toUtc(),
-            ),
-            deletedAt: Value(_parseTimestamp(raw['deleted_at'])),
-          ),
-          mode: InsertMode.insertOrReplace,
-        );
-      }
-    });
-    await _touchLastPull(_keyLastPullCallingEvents, now);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    await callingsDao.replaceAllEventsFromServer(list);
+    await _touchLastPull(_keyLastPullCallingEvents, DateTime.now().toUtc());
   }
 
   Future<void> _touchLastPull(String key, DateTime at) async {
     await db.into(db.syncMeta).insert(
-          SyncMetaCompanion(
-            key: Value(key),
-            value: Value(at.toIso8601String()),
+          SyncMetaCompanion.insert(
+            key: key,
+            value: at.toIso8601String(),
           ),
           mode: InsertMode.insertOrReplace,
         );
-  }
-
-  static DateTime? _parseTimestamp(Object? value) {
-    if (value == null) return null;
-    if (value is DateTime) return value.toUtc();
-    if (value is String && value.isNotEmpty) {
-      return DateTime.parse(value).toUtc();
-    }
-    return null;
   }
 }
 
@@ -202,6 +221,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     db: db,
     client: Supabase.instance.client,
     membersDao: MembersDao(db),
+    callingsDao: CallingsDao(db),
   );
   ref.onDispose(service.stopRealtime);
   return service;
