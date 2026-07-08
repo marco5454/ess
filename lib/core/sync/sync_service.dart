@@ -10,6 +10,7 @@ import '../../features/callings/data/local/callings_dao.dart';
 import '../../features/members/data/local/members_dao.dart';
 import '../db/app_database.dart';
 import '../db/app_database_provider.dart';
+import 'connectivity_service.dart';
 import 'outbox_dao.dart';
 import 'outbox_pusher.dart';
 
@@ -293,6 +294,18 @@ final _syncLifecycleProvider = Provider<void>((ref) {
       _bringUp(ref);
     } else if (!next && (previous ?? false)) {
       _tearDown(ref);
+    }
+  });
+
+  // Kick a drain any time the device transitions offline → online while the
+  // user is still signed in. Pending mutations made while offline will flush
+  // without requiring a fresh mutation or a restart.
+  ref.listen<AsyncValue<bool>>(connectivityStatusProvider, (previous, next) {
+    final wasOnline = previous?.value ?? false;
+    final isOnline = next.value ?? false;
+    if (isOnline && !wasOnline && ref.read(isAuthenticatedProvider)) {
+      // ignore: discarded_futures
+      ref.read(syncServiceProvider).drainOutbox();
     }
   });
 });
