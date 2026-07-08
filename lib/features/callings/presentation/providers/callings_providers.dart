@@ -395,3 +395,147 @@ final membersWithCallingsProvider =
     return byMember;
   });
 });
+
+// ---------------------------------------------------------------------------
+// Bishopric agenda
+// ---------------------------------------------------------------------------
+
+/// A snapshot of the ward's callings work, sliced into the sections a
+/// bishopric would walk through in a meeting.
+///
+/// Each list is sorted so the most-actionable item is first — for pipeline
+/// sections that means oldest-first (so items that have been waiting the
+/// longest surface at the top). [recent] is newest-first (the same
+/// ordering used by the Dashboard "Recent activity" card).
+class BishopricAgenda {
+  const BishopricAgenda({
+    required this.generatedAt,
+    required this.inServiceCount,
+    required this.readyToSustain,
+    required this.readyToSetApart,
+    required this.awaitingResponse,
+    required this.newSelections,
+    required this.stalled,
+    required this.recent,
+  });
+
+  final DateTime generatedAt;
+
+  /// Callings currently in an "in service" state — used in the header
+  /// as a quick sanity number ("N callings in service").
+  final int inServiceCount;
+
+  final List<CallingSummaryRow> readyToSustain;
+  final List<CallingSummaryRow> readyToSetApart;
+  final List<CallingSummaryRow> awaitingResponse;
+  final List<CallingSummaryRow> newSelections;
+
+  /// The subset of [awaitingResponse] + [newSelections] whose latest event
+  /// is at least [dashboardStaleThreshold] old. Included explicitly (even
+  /// though the same rows appear above) so a printed agenda calls out
+  /// stalled items as their own action list.
+  final List<CallingSummaryRow> stalled;
+
+  /// The last N state transitions, newest-first. Reuses
+  /// [recentActivityProvider] under the hood.
+  final List<RecentActivityRow> recent;
+
+  bool get isEmpty =>
+      readyToSustain.isEmpty &&
+      readyToSetApart.isEmpty &&
+      awaitingResponse.isEmpty &&
+      newSelections.isEmpty &&
+      stalled.isEmpty &&
+      recent.isEmpty;
+}
+
+/// Live agenda snapshot for the bishopric meeting screen.
+///
+/// Composes [callingSummaryProvider] (for all state-sliced sections) and
+/// [recentActivityProvider] (for the "Recent activity" tail). Sorting per
+/// section:
+///   - Ready to sustain / set apart / awaiting response / new selections:
+///     oldest latest-event first, so items that have been waiting the
+///     longest surface at the top.
+///   - Stalled: same, oldest first.
+///   - Recent: whatever [recentActivityProvider] emits (already newest
+///     first).
+final bishopricAgendaProvider =
+    Provider<AsyncValue<BishopricAgenda>>((ref) {
+  final summaryAsync = ref.watch(callingSummaryProvider);
+  final recentAsync = ref.watch(recentActivityProvider);
+
+  if (summaryAsync.isLoading || recentAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+  if (summaryAsync.hasError) {
+    return AsyncValue.error(
+      summaryAsync.error!,
+      summaryAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (recentAsync.hasError) {
+    return AsyncValue.error(
+      recentAsync.error!,
+      recentAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+
+  final now = DateTime.now();
+  final rows = summaryAsync.value!;
+
+  int oldestFirst(CallingSummaryRow a, CallingSummaryRow b) {
+    final ao = a.latestEvent?.occurredAt;
+    final bo = b.latestEvent?.occurredAt;
+    if (ao == null && bo == null) return 0;
+    if (ao == null) return 1;
+    if (bo == null) return -1;
+    return ao.compareTo(bo);
+  }
+
+  List<CallingSummaryRow> filterByState(CallingState state) {
+    final matches = rows
+        .where((r) => r.latestEvent?.state == state)
+        .toList(growable: false);
+    matches.sort(oldestFirst);
+    return matches;
+  }
+
+  final readyToSustain = filterByState(CallingState.accepted);
+  final readyToSetApart = filterByState(CallingState.sustained);
+  final awaitingResponse = filterByState(CallingState.extended);
+  final newSelections = filterByState(CallingState.selected);
+
+  // Stalled: any pipeline state whose latest event is old enough. Same
+  // definition as the Summary "Needs attention" tab (which uses
+  // {selected, extended} + 14 days).
+  final stalled = <CallingSummaryRow>[];
+  for (final row in rows) {
+    final state = row.latestEvent?.state;
+    if (state != CallingState.selected && state != CallingState.extended) {
+      continue;
+    }
+    final occurred = row.latestEvent?.occurredAt;
+    if (occurred == null) continue;
+    if (now.difference(occurred) < dashboardStaleThreshold) continue;
+    stalled.add(row);
+  }
+  stalled.sort(oldestFirst);
+
+  final inServiceCount = rows
+      .where((r) =>
+          r.latestEvent != null &&
+          memberInServiceStates.contains(r.latestEvent!.state))
+      .length;
+
+  return AsyncValue.data(BishopricAgenda(
+    generatedAt: now,
+    inServiceCount: inServiceCount,
+    readyToSustain: readyToSustain,
+    readyToSetApart: readyToSetApart,
+    awaitingResponse: awaitingResponse,
+    newSelections: newSelections,
+    stalled: stalled,
+    recent: recentAsync.value!,
+  ));
+});

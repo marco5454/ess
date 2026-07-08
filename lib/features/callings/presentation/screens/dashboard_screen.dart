@@ -37,6 +37,11 @@ class DashboardScreen extends ConsumerWidget {
         title: const Text('Dashboard'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.assignment_outlined),
+            tooltip: 'Bishopric agenda',
+            onPressed: () => context.push(AppRoutes.agenda),
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'About',
             onPressed: () => context.push(AppRoutes.about),

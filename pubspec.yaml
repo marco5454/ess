@@ -56,6 +56,10 @@ dependencies:
   # phone / email rows are actionable rather than plain text.
   url_launcher: ^6.3.0
 
+  # Native share sheet for exporting the bishopric agenda as text.
+  # Falls back to navigator.share on web.
+  share_plus: ^10.1.0
+
 # Compile SQLite from the amalgamation source we vendor at third_party/sqlite/sqlite3.c
 # instead of downloading a precompiled .so from GitHub (the default behavior of the
 # `sqlite3` package). Doing so makes builds work in network-restricted environments

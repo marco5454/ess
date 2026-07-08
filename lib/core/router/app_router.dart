@@ -8,6 +8,7 @@ import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
 import '../../features/callings/domain/entities/calling_state.dart';
 import '../../features/callings/presentation/screens/add_calling_screen.dart';
+import '../../features/callings/presentation/screens/bishopric_agenda_screen.dart';
 import '../../features/callings/presentation/screens/calling_detail_screen.dart';
 import '../../features/callings/presentation/screens/callings_by_state_screen.dart';
 import '../../features/callings/presentation/screens/edit_calling_screen.dart';
@@ -82,6 +83,7 @@ class AppRoutes {
   static const home = '/';
   static const login = '/login';
   static const about = '/about';
+  static const agenda = '/agenda';
   static const adminInviteCodes = '/admin/invite-codes';
   static const adminUsers = '/admin/users';
   static const memberAdd = '/members/add';
@@ -250,6 +252,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.about,
         pageBuilder: (_, state) =>
             _slidePage(state: state, child: const AboutScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.agenda,
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const BishopricAgendaScreen()),
       ),
       GoRoute(
         path: AppRoutes.adminInviteCodes,
