@@ -44,6 +44,19 @@ dependencies:
   drift: ^2.34.1
   drift_flutter: ^0.3.0
 
+# Compile SQLite from the amalgamation source we vendor at third_party/sqlite/sqlite3.c
+# instead of downloading a precompiled .so from GitHub (the default behavior of the
+# `sqlite3` package). Doing so makes builds work in network-restricted environments
+# (this development host is IPv6-only; github.com is IPv4-only for the release CDN)
+# and pins the exact SQLite version we ship. Keeps the sqlite3 package's default
+# compile options (FTS5, RTREE, math functions, etc.).
+# See https://pub.dev/documentation/sqlite3/latest/topics/hook-topic.html
+hooks:
+  user_defines:
+    sqlite3:
+      source: source
+      path: third_party/sqlite/sqlite3.c
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
