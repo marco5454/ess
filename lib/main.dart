@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/sync_service.dart';
 import 'core/theme/chapel_theme.dart';
 
 Future<void> main() async {
@@ -21,6 +22,8 @@ class BishopricTrackerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    // Keep the seed-on-login listener active for the app's lifetime.
+    ref.watch(seedOnLoginProvider);
 
     return MaterialApp.router(
       title: 'Bishopric Tracker',
