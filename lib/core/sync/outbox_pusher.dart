@@ -46,6 +46,8 @@ class OutboxPusher {
         await _pushCalling(entry, payload);
       case OutboxEntityType.callingEvent:
         await _pushCallingEvent(entry, payload);
+      case OutboxEntityType.trackedActivity:
+        await _pushTrackedActivity(entry, payload);
       default:
         // Unknown entity types are treated as a hard failure — bubble up so
         // the drainer can log and drop the entry.
@@ -95,6 +97,29 @@ class OutboxPusher {
       case OutboxOp.update:
         // Not currently produced — calling_events is append-only for now.
         throw StateError('UPDATE op not supported for calling_events');
+      default:
+        throw StateError('Unknown outbox op: ${entry.operation}');
+    }
+  }
+
+  Future<void> _pushTrackedActivity(
+    OutboxEntry entry,
+    Map<String, dynamic> payload,
+  ) async {
+    switch (entry.operation) {
+      case OutboxOp.insert:
+        await client.from('tracked_activities').insert(payload);
+      case OutboxOp.update:
+        await client
+            .from('tracked_activities')
+            .update(payload)
+            .eq('id', entry.entityId);
+      case OutboxOp.delete:
+        // Hard DELETE for now (matches current server pattern).
+        await client
+            .from('tracked_activities')
+            .delete()
+            .eq('id', entry.entityId);
       default:
         throw StateError('Unknown outbox op: ${entry.operation}');
     }

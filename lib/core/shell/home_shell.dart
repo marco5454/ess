@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/activities/presentation/screens/activities_list_screen.dart';
 import '../../features/callings/presentation/screens/dashboard_screen.dart';
 import '../../features/callings/presentation/screens/summary_screen.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
@@ -16,7 +17,7 @@ import '../theme/chapel_theme.dart';
 /// attention" hero flips the user to the Summary tab.
 ///
 /// Indices match the order in the shell's [IndexedStack]:
-/// 0 = Summary, 1 = Dashboard, 2 = Members.
+/// 0 = Summary, 1 = Dashboard, 2 = Members, 3 = Activities.
 final homeShellTabProvider =
     NotifierProvider<HomeShellTabNotifier, int>(HomeShellTabNotifier.new);
 
@@ -31,11 +32,12 @@ class HomeShellTabNotifier extends Notifier<int> {
 
 /// Root shell for the authenticated app.
 ///
-/// Hosts a bottom [NavigationBar] with three tabs — Summary, Dashboard,
-/// and Members — inside an [IndexedStack] so each tab preserves its state
-/// (scroll position, search query) when the user switches away and back.
-/// Each tab screen owns its own [Scaffold] / [AppBar] so it can supply
-/// tab-specific actions, FABs, and search fields.
+/// Hosts a bottom [NavigationBar] with four tabs — Summary, Dashboard,
+/// Members, and Activities — inside an [IndexedStack] so each tab
+/// preserves its state (scroll position, search query) when the user
+/// switches away and back. Each tab screen owns its own [Scaffold] /
+/// [AppBar] so it can supply tab-specific actions, FABs, and search
+/// fields.
 ///
 /// A slim status strip above the stack surfaces two things when relevant:
 /// an offline banner and a pending-writes pill (count of outbox rows
@@ -60,6 +62,7 @@ class HomeShell extends ConsumerWidget {
                   SummaryScreen(),
                   DashboardScreen(),
                   MembersListScreen(),
+                  ActivitiesListScreen(),
                 ],
               ),
             ),
@@ -85,6 +88,11 @@ class HomeShell extends ConsumerWidget {
             icon: Icon(Icons.people_outline),
             selectedIcon: Icon(Icons.people),
             label: 'Members',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.checklist_outlined),
+            selectedIcon: Icon(Icons.checklist),
+            label: 'Activities',
           ),
         ],
       ),

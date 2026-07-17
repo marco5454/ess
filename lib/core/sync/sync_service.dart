@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/audit/presentation/providers/audit_providers.dart';
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
+import '../../features/activities/data/local/tracked_activities_dao.dart';
 import '../../features/callings/data/local/callings_dao.dart';
 import '../../features/members/data/local/members_dao.dart';
 import '../db/app_database.dart';
@@ -35,6 +36,7 @@ class SyncService {
     required this.client,
     required this.membersDao,
     required this.callingsDao,
+    required this.trackedActivitiesDao,
     required this.outboxDao,
     required this.outboxPusher,
   });
@@ -43,16 +45,19 @@ class SyncService {
   final SupabaseClient client;
   final MembersDao membersDao;
   final CallingsDao callingsDao;
+  final TrackedActivitiesDao trackedActivitiesDao;
   final OutboxDao outboxDao;
   final OutboxPusher outboxPusher;
 
   static const _keyLastPullMembers = 'last_pull.members';
   static const _keyLastPullCallings = 'last_pull.callings';
   static const _keyLastPullCallingEvents = 'last_pull.calling_events';
+  static const _keyLastPullTrackedActivities = 'last_pull.tracked_activities';
 
   RealtimeChannel? _membersChannel;
   RealtimeChannel? _callingsChannel;
   RealtimeChannel? _callingEventsChannel;
+  RealtimeChannel? _trackedActivitiesChannel;
 
   /// Pulls every visible row from the three server tables and mirrors them
   /// into the local database. Safe to call repeatedly — the DAO upserts use
@@ -69,6 +74,7 @@ class SyncService {
     await _pullMembers();
     await _pullCallings();
     await _pullCallingEvents();
+    await _pullTrackedActivities();
   }
 
   /// Subscribe to server row changes and mirror them into Drift.
@@ -79,6 +85,7 @@ class SyncService {
     _membersChannel ??= _subscribeMembers();
     _callingsChannel ??= _subscribeCallings();
     _callingEventsChannel ??= _subscribeCallingEvents();
+    _trackedActivitiesChannel ??= _subscribeTrackedActivities();
   }
 
   /// Tear down all realtime subscriptions. Called on sign-out and by the
@@ -88,10 +95,12 @@ class SyncService {
       _membersChannel,
       _callingsChannel,
       _callingEventsChannel,
+      _trackedActivitiesChannel,
     ];
     _membersChannel = null;
     _callingsChannel = null;
     _callingEventsChannel = null;
+    _trackedActivitiesChannel = null;
     for (final ch in channels) {
       if (ch != null) {
         await client.removeChannel(ch);
@@ -211,6 +220,46 @@ class SyncService {
     await _touchLastPull(_keyLastPullCallingEvents, DateTime.now().toUtc());
   }
 
+  Future<void> _pullTrackedActivities() async {
+    final rows = await client.from('tracked_activities').select();
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    await trackedActivitiesDao.replaceAllFromServer(list);
+    await _touchLastPull(
+      _keyLastPullTrackedActivities,
+      DateTime.now().toUtc(),
+    );
+  }
+
+  RealtimeChannel _subscribeTrackedActivities() {
+    return client
+        .channel('public:tracked_activities')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'tracked_activities',
+          callback: (payload) {
+            switch (payload.eventType) {
+              case PostgresChangeEvent.insert:
+              case PostgresChangeEvent.update:
+                final row = payload.newRecord;
+                // ignore: discarded_futures
+                trackedActivitiesDao.upsertFromServerMap(row);
+                break;
+              case PostgresChangeEvent.delete:
+                final id = payload.oldRecord['id'] as String?;
+                if (id != null) {
+                  // ignore: discarded_futures
+                  trackedActivitiesDao.deleteById(id);
+                }
+                break;
+              case PostgresChangeEvent.all:
+                break;
+            }
+          },
+        )
+        .subscribe();
+  }
+
   Future<void> _touchLastPull(String key, DateTime at) async {
     await db.into(db.syncMeta).insert(
           SyncMetaCompanion.insert(
@@ -274,6 +323,7 @@ class SyncService {
   Future<void> signOutAndWipeLocal() async {
     await stopRealtime();
     await outboxDao.deleteAll();
+    await trackedActivitiesDao.deleteAll();
     await callingsDao.deleteAll();
     await membersDao.deleteAll();
     try {
@@ -298,6 +348,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     client: client,
     membersDao: MembersDao(db),
     callingsDao: CallingsDao(db),
+    trackedActivitiesDao: TrackedActivitiesDao(db),
     outboxDao: OutboxDao(db),
     outboxPusher: OutboxPusher(client: client),
   );

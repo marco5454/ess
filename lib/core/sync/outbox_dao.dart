@@ -11,6 +11,7 @@ class OutboxEntityType {
   static const String member = 'members';
   static const String calling = 'callings';
   static const String callingEvent = 'calling_events';
+  static const String trackedActivity = 'tracked_activities';
 }
 
 /// Operations recognized by the outbox drainer.

@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/activities/presentation/screens/activity_detail_screen.dart';
+import '../../features/activities/presentation/screens/add_activity_screen.dart';
+import '../../features/activities/presentation/screens/edit_activity_screen.dart';
 import '../../features/admin/presentation/screens/admin_audit_log_screen.dart';
 import '../../features/admin/presentation/screens/admin_invite_codes_screen.dart';
 import '../../features/admin/presentation/screens/admin_users_screen.dart';
@@ -116,6 +119,17 @@ class AppRoutes {
   /// Accepts the Postgres wire value (e.g. `set_apart`, not `setApart`).
   static String callingsInState(String wireState) =>
       '/callings/state/$wireState';
+
+  // ---------------------------------------------------------------------------
+  // Tracked activities (generic ward tasks)
+
+  static const activityAdd = '/activities/add';
+
+  /// Build the detail path for a specific activity.
+  static String activityDetail(String id) => '/activities/$id';
+
+  /// Build the edit path for a specific activity.
+  static String activityEdit(String id) => '/activities/$id/edit';
 }
 
 /// Bridges a Riverpod provider into a [Listenable] so `go_router` can be told
@@ -244,6 +258,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: CallingsByStateScreen(state: CallingState.fromWire(wire)),
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.activityAdd,
+        pageBuilder: (_, state) =>
+            _slidePage(state: state, child: const AddActivityScreen()),
+      ),
+      GoRoute(
+        path: '/activities/:id',
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: ActivityDetailScreen(
+            activityId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/activities/:id/edit',
+        pageBuilder: (_, state) => _slidePage(
+          state: state,
+          child: EditActivityScreen(
+            activityId: state.pathParameters['id']!,
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.login,

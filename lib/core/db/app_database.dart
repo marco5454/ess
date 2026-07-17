@@ -96,6 +96,39 @@ class CallingEvents extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Generic ward-bookkeeping items that do NOT need the full calling
+/// lifecycle. Mirrors `public.tracked_activities` — see the migration
+/// `20260718000000_tracked_activities.sql`.
+///
+/// Unlike callings, status is a mutable column (`status`) rather than an
+/// append-only event stream. When status flips to `completed`, the
+/// repository stamps `completedAt`. `memberId` is nullable so ward-wide
+/// activities are representable.
+///
+/// Row class renamed to `TrackedActivityRow` to avoid colliding with the
+/// domain entity `TrackedActivity`.
+@DataClassName('TrackedActivityRow')
+class TrackedActivities extends Table {
+  TextColumn get id => text()();
+  // Nullable — ward-wide activities have no single candidate.
+  TextColumn get memberId => text().named('member_id').nullable()();
+  TextColumn get title => text()();
+  // Freeform category tag ('temple_recommend', 'ministering_interview', ...).
+  // Stored as text (not enum) so new categories don't need a migration.
+  TextColumn get kind => text()();
+  // Raw enum wire value ('pending' | 'in_progress' | 'completed' | 'cancelled').
+  TextColumn get status => text()();
+  DateTimeColumn get dueAt => dateTime().named('due_at').nullable()();
+  DateTimeColumn get completedAt => dateTime().named('completed_at').nullable()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().named('created_at')();
+  DateTimeColumn get updatedAt => dateTime().named('updated_at')();
+  DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Queue of pending server mutations produced while offline (or that failed
 /// to flush online). Drained by the sync worker in FIFO order.
 ///
@@ -108,7 +141,7 @@ class CallingEvents extends Table {
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get opId => text().named('op_id').unique()();
-  // Entity: 'members' | 'callings' | 'calling_events'
+  // Entity: 'members' | 'callings' | 'calling_events' | 'tracked_activities'
   TextColumn get entityType => text().named('entity_type')();
   TextColumn get entityId => text().named('entity_id')();
   // Operation: 'insert' | 'update' | 'delete'
@@ -131,7 +164,7 @@ class SyncMeta extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Members, Callings, CallingEvents, Outbox, SyncMeta])
+@DriftDatabase(tables: [Members, Callings, CallingEvents, TrackedActivities, Outbox, SyncMeta])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'bishopric_tracker'));
 
@@ -139,7 +172,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -149,6 +182,11 @@ class AppDatabase extends _$AppDatabase {
             // calling_events. Mirrors the Supabase migration
             // 20260717200000_calling_events_performed_by.sql.
             await m.addColumn(callingEvents, callingEvents.performedBy);
+          }
+          if (from < 3) {
+            // New generic activities table. Mirrors the Supabase migration
+            // 20260718000000_tracked_activities.sql.
+            await m.createTable(trackedActivities);
           }
         },
       );
