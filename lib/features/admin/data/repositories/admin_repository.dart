@@ -102,14 +102,23 @@ class AdminRepository {
   /// Pass [before] and [beforeId] from the last entry of the previous page
   /// to fetch older rows. Omit both for the first page.
   ///
-  /// [actionLike] uses SQL LIKE semantics (e.g. `'member.%'`); [actorId]
-  /// filters to a single actor.
+  /// Filters:
+  ///   - [actionLike]: SQL LIKE pattern (e.g. `'member.%'`).
+  ///   - [actorId]: restrict to a single actor.
+  ///   - [entityType] / [entityId]: restrict to a single record (both
+  ///     usually supplied together, but either can be used alone).
+  ///   - [sinceAt] / [untilAt]: half-open date range on `occurred_at`
+  ///     (`>= sinceAt` and `< untilAt`).
   Future<List<AuditLogEntry>> listAuditLog({
     DateTime? before,
     int? beforeId,
     int pageSize = 50,
     String? actionLike,
     String? actorId,
+    String? entityType,
+    String? entityId,
+    DateTime? sinceAt,
+    DateTime? untilAt,
   }) async {
     final rows = await _client.rpc(
       'list_audit_log',
@@ -119,6 +128,10 @@ class AdminRepository {
         'page_size': pageSize,
         'action_like': actionLike,
         'actor': actorId,
+        'entity_type_eq': entityType,
+        'entity_id_eq': entityId,
+        'since_at': sinceAt?.toUtc().toIso8601String(),
+        'until_at': untilAt?.toUtc().toIso8601String(),
       },
     );
     return (rows as List)

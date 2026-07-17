@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show InsertMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/audit/presentation/providers/audit_providers.dart';
 import '../../features/auth/presentation/providers/auth_state_provider.dart';
 import '../../features/callings/data/local/callings_dao.dart';
 import '../../features/members/data/local/members_dao.dart';
@@ -376,6 +377,9 @@ final seedOnLoginProvider = _syncLifecycleProvider;
 /// Call from any Riverpod-aware widget or provider; the two AppBar
 /// sign-out buttons are the primary call sites.
 Future<void> performSignOut(WidgetRef ref) async {
+  // Best-effort audit before we tear down the session — after signOut,
+  // auth.uid() is null and the server-side helper rejects the call.
+  await ref.read(auditRepositoryProvider).logAuthEvent('user.signout');
   final sync = ref.read(syncServiceProvider);
   await sync.signOutAndWipeLocal();
   markSignedOut(ref);
@@ -383,6 +387,7 @@ Future<void> performSignOut(WidgetRef ref) async {
 
 /// [Ref]-based variant of [performSignOut] for use inside providers/services.
 Future<void> performSignOutFromRef(Ref ref) async {
+  await ref.read(auditRepositoryProvider).logAuthEvent('user.signout');
   final sync = ref.read(syncServiceProvider);
   await sync.signOutAndWipeLocal();
   markSignedOutFromRef(ref);

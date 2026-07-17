@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/state_chip.dart';
+import '../../../audit/presentation/widgets/entity_history_section.dart';
 import '../../domain/entities/calling.dart';
 import '../../domain/entities/calling_event.dart';
 import '../providers/callings_providers.dart';
@@ -82,7 +83,7 @@ class CallingDetailScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  'History',
+                  'Timeline',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -90,6 +91,15 @@ class CallingDetailScreen extends ConsumerWidget {
                 eventsAsync: eventsAsync,
                 memberId: memberId,
                 callingId: callingId,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: EntityHistorySection(
+                  entityType: 'calling',
+                  entityId: callingId,
+                  title: 'Change history',
+                  emptyLabel: 'No metadata edits yet.',
+                ),
               ),
             ],
           ),

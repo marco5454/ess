@@ -48,13 +48,28 @@ class _AdminAuditLogScreenState extends ConsumerState<AdminAuditLogScreen> {
     final notifier = ref.read(auditLogProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity log')),
+      appBar: AppBar(
+        title: const Text('Activity log'),
+        actions: [
+          IconButton(
+            tooltip: 'Filter by date',
+            icon: const Icon(Icons.date_range),
+            onPressed: () => _pickDateRange(context, notifier, state),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _FilterBar(
             active: state.actionLike,
             onChanged: notifier.setActionFilter,
           ),
+          if (state.sinceAt != null || state.untilAt != null)
+            _DateRangeBanner(
+              sinceAt: state.sinceAt,
+              untilAt: state.untilAt,
+              onClear: notifier.clearDateRange,
+            ),
           const Divider(height: 0),
           Expanded(
             child: RefreshIndicator(
@@ -65,6 +80,42 @@ class _AdminAuditLogScreenState extends ConsumerState<AdminAuditLogScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _pickDateRange(
+    BuildContext context,
+    AuditLogNotifier notifier,
+    AuditLogState state,
+  ) async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year - 5);
+    final lastDate = DateTime(now.year + 1);
+    final initial = (state.sinceAt != null && state.untilAt != null)
+        ? DateTimeRange(
+            start: state.sinceAt!.toLocal(),
+            end: state.untilAt!.toLocal().subtract(const Duration(days: 1)),
+          )
+        : null;
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      initialDateRange: initial,
+    );
+    if (picked == null) return;
+    // Convert to a half-open UTC range: start of `picked.start` day .. end
+    // of `picked.end` day (exclusive).
+    final since = DateTime(
+      picked.start.year,
+      picked.start.month,
+      picked.start.day,
+    );
+    final until = DateTime(
+      picked.end.year,
+      picked.end.month,
+      picked.end.day,
+    ).add(const Duration(days: 1));
+    await notifier.setDateRange(sinceAt: since, untilAt: until);
   }
 
   Widget _body(AuditLogState state) {
@@ -158,8 +209,58 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-class _Footer extends StatelessWidget {
-  const _Footer({required this.state});
+class _DateRangeBanner extends StatelessWidget {
+  const _DateRangeBanner({
+    required this.sinceAt,
+    required this.untilAt,
+    required this.onClear,
+  });
+
+  final DateTime? sinceAt;
+  final DateTime? untilAt;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = _label();
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.date_range, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onClear, child: const Text('Clear')),
+        ],
+      ),
+    );
+  }
+
+  String _label() {
+    String fmt(DateTime? d) => d == null ? '…' : _formatDate(d.toLocal());
+    // untilAt is exclusive; display the inclusive last-day for humans.
+    final endInclusive = untilAt?.subtract(const Duration(days: 1));
+    return 'Range: ${fmt(sinceAt)} → ${fmt(endInclusive)}';
+  }
+}
+
+String _formatDate(DateTime d) {
+  final y = d.year.toString().padLeft(4, '0');
+  final m = d.month.toString().padLeft(2, '0');
+  final day = d.day.toString().padLeft(2, '0');
+  return '$y-$m-$day';
+}
+
+class _Footer extends StatelessWidget {  const _Footer({required this.state});
 
   final AuditLogState state;
 

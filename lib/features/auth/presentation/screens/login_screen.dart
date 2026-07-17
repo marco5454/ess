@@ -8,6 +8,7 @@ import '../../../../core/legal/legal_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_icon.dart';
 import '../../../../core/theme/chapel_theme.dart';
+import '../../../audit/presentation/providers/audit_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../providers/auth_repository_provider.dart';
 
@@ -60,11 +61,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _signIn() async {
     setState(() => _isSubmitting = true);
     final messenger = ScaffoldMessenger.of(context);
+    final audit = ref.read(auditRepositoryProvider);
     try {
       await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Best-effort audit; swallowed inside the repo on failure.
+      await audit.logAuthEvent('user.signin');
     } on AuthException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {

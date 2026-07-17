@@ -20,6 +20,8 @@ class AuditLogState {
     this.error,
     this.actionLike,
     this.actorId,
+    this.sinceAt,
+    this.untilAt,
   });
 
   final List<AuditLogEntry> entries;
@@ -31,6 +33,11 @@ class AuditLogState {
   final String? actionLike;
   final String? actorId;
 
+  /// Half-open date range on `occurred_at`. Both are optional; the server
+  /// applies `>= sinceAt` and `< untilAt` when set.
+  final DateTime? sinceAt;
+  final DateTime? untilAt;
+
   AuditLogState copyWith({
     List<AuditLogEntry>? entries,
     bool? isLoading,
@@ -38,6 +45,8 @@ class AuditLogState {
     Object? error,
     Object? actionLike = _unset,
     Object? actorId = _unset,
+    Object? sinceAt = _unset,
+    Object? untilAt = _unset,
   }) {
     return AuditLogState(
       entries: entries ?? this.entries,
@@ -48,6 +57,12 @@ class AuditLogState {
           ? this.actionLike
           : actionLike as String?,
       actorId: identical(actorId, _unset) ? this.actorId : actorId as String?,
+      sinceAt: identical(sinceAt, _unset)
+          ? this.sinceAt
+          : sinceAt as DateTime?,
+      untilAt: identical(untilAt, _unset)
+          ? this.untilAt
+          : untilAt as DateTime?,
     );
   }
 
@@ -73,6 +88,8 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         pageSize: _pageSize,
         actionLike: state.actionLike,
         actorId: state.actorId,
+        sinceAt: state.sinceAt,
+        untilAt: state.untilAt,
       );
       state = state.copyWith(
         entries: rows,
@@ -98,6 +115,8 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         pageSize: _pageSize,
         actionLike: state.actionLike,
         actorId: state.actorId,
+        sinceAt: state.sinceAt,
+        untilAt: state.untilAt,
       );
       state = state.copyWith(
         entries: [...state.entries, ...rows],
@@ -116,6 +135,8 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
       isLoading: true,
       actionLike: state.actionLike,
       actorId: state.actorId,
+      sinceAt: state.sinceAt,
+      untilAt: state.untilAt,
     );
     await _loadFirstPage();
   }
@@ -128,9 +149,27 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
       isLoading: true,
       actionLike: like,
       actorId: state.actorId,
+      sinceAt: state.sinceAt,
+      untilAt: state.untilAt,
     );
     await _loadFirstPage();
   }
+
+  /// Update the half-open date range and refresh. Either bound may be null.
+  Future<void> setDateRange({DateTime? sinceAt, DateTime? untilAt}) async {
+    if (sinceAt == state.sinceAt && untilAt == state.untilAt) return;
+    state = AuditLogState(
+      isLoading: true,
+      actionLike: state.actionLike,
+      actorId: state.actorId,
+      sinceAt: sinceAt,
+      untilAt: untilAt,
+    );
+    await _loadFirstPage();
+  }
+
+  /// Clear the date range and refresh.
+  Future<void> clearDateRange() => setDateRange();
 }
 
 final auditLogProvider = NotifierProvider<AuditLogNotifier, AuditLogState>(

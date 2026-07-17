@@ -8,6 +8,7 @@ import '../../../../core/motion/skeletons.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_theme.dart';
 import '../../../../core/theme/state_chip.dart';
+import '../../../audit/presentation/widgets/entity_history_section.dart';
 import '../../../callings/domain/entities/calling_event.dart';
 import '../../../callings/presentation/providers/callings_providers.dart';
 import '../../domain/entities/member.dart';
@@ -103,6 +104,14 @@ class MemberDetailScreen extends ConsumerWidget {
               _CallingsSection(
                 memberId: memberId,
                 callingsAsync: callingsAsync,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: EntityHistorySection(
+                  entityType: 'member',
+                  entityId: memberId,
+                  emptyLabel: 'No history for this member yet.',
+                ),
               ),
             ],
           ),
