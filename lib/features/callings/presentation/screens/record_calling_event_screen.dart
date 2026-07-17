@@ -29,6 +29,7 @@ class _RecordCallingEventScreenState
     extends ConsumerState<RecordCallingEventScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notes = TextEditingController();
+  final _performedBy = TextEditingController();
 
   CallingState? _selectedState;
   DateTime _occurredAt = DateTime.now();
@@ -37,6 +38,7 @@ class _RecordCallingEventScreenState
   @override
   void dispose() {
     _notes.dispose();
+    _performedBy.dispose();
     super.dispose();
   }
 
@@ -86,6 +88,7 @@ class _RecordCallingEventScreenState
         state: _selectedState!,
         occurredAt: _occurredAt,
         notes: _notes.text,
+        performedBy: _performedBy.text,
       );
       // Refresh both the calling's own event list and the member's list of
       // callings (so the state chip on the parent screens updates).
@@ -186,6 +189,15 @@ class _RecordCallingEventScreenState
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _performedBy,
+                    decoration: const InputDecoration(
+                      labelText: 'Performed by (optional)',
+                      helperText: 'e.g. Bishop Smith',
+                    ),
+                    textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

@@ -215,13 +215,22 @@ class CallingsRepository {
   }
 
   /// Append a new state event to a calling's history.
+  ///
+  /// [performedBy] is an optional free-text attribution (e.g. "Bishop Smith")
+  /// shown in the timeline. It is independent from the auth `recordedBy` id.
   Future<CallingEvent> addEvent({
     required String callingId,
     required CallingState state,
     required DateTime occurredAt,
     String? notes,
+    String? performedBy,
   }) async {
     final trimmedNotes = notes?.trim();
+    final trimmedPerformedBy = performedBy?.trim();
+    final normalizedPerformedBy =
+        (trimmedPerformedBy != null && trimmedPerformedBy.isNotEmpty)
+            ? trimmedPerformedBy
+            : null;
     final now = DateTime.now().toUtc();
     final eventId = _uuid.v4();
     final recordedBy = _client.auth.currentUser?.id;
@@ -235,6 +244,7 @@ class CallingsRepository {
           ? trimmedNotes
           : null,
       recordedBy: recordedBy,
+      performedBy: normalizedPerformedBy,
       createdAt: now,
     );
     await _dao.insertEventLocal(event);
@@ -248,6 +258,7 @@ class CallingsRepository {
       'created_at': now.toIso8601String(),
       if (trimmedNotes != null && trimmedNotes.isNotEmpty)
         'notes': trimmedNotes,
+      'performed_by': ?normalizedPerformedBy,
     };
     await _outbox.enqueue(
       opId: _uuid.v4(),

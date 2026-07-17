@@ -84,6 +84,10 @@ class CallingEvents extends Table {
   DateTimeColumn get occurredAt => dateTime().named('occurred_at')();
   TextColumn get notes => text().nullable()();
   TextColumn get recordedBy => text().named('recorded_by').nullable()();
+  // Optional free-text attribution ("who did this action") shown in the UI.
+  // Independent from `recordedBy`, which is the auth user id of whoever
+  // saved the event on their device. Added in schemaVersion 2.
+  TextColumn get performedBy => text().named('performed_by').nullable()();
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   DateTimeColumn get updatedAt => dateTime().named('updated_at')();
   DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();
@@ -135,5 +139,17 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // Add optional `performed_by` free-text attribution to
+            // calling_events. Mirrors the Supabase migration
+            // 20260717200000_calling_events_performed_by.sql.
+            await m.addColumn(callingEvents, callingEvents.performedBy);
+          }
+        },
+      );
 }

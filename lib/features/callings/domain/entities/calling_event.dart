@@ -14,6 +14,7 @@ class CallingEvent {
     required this.occurredAt,
     this.notes,
     this.recordedBy,
+    this.performedBy,
     required this.createdAt,
   });
 
@@ -23,6 +24,10 @@ class CallingEvent {
   final DateTime occurredAt;
   final String? notes;
   final String? recordedBy;
+  /// Optional free-text attribution: who actually performed the action
+  /// (e.g. "Bishop Smith"). Distinct from [recordedBy], which is the auth
+  /// user id of whoever saved the event on their device.
+  final String? performedBy;
   final DateTime createdAt;
 
   factory CallingEvent.fromMap(Map<String, dynamic> map) {
@@ -33,6 +38,7 @@ class CallingEvent {
       occurredAt: DateTime.parse(map['occurred_at'] as String),
       notes: map['notes'] as String?,
       recordedBy: map['recorded_by'] as String?,
+      performedBy: map['performed_by'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

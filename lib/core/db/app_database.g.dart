@@ -1353,6 +1353,17 @@ class $CallingEventsTable extends CallingEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _performedByMeta = const VerificationMeta(
+    'performedBy',
+  );
+  @override
+  late final GeneratedColumn<String> performedBy = GeneratedColumn<String>(
+    'performed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1394,6 +1405,7 @@ class $CallingEventsTable extends CallingEvents
     occurredAt,
     notes,
     recordedBy,
+    performedBy,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1451,6 +1463,15 @@ class $CallingEventsTable extends CallingEvents
         recordedBy.isAcceptableOrUnknown(data['recorded_by']!, _recordedByMeta),
       );
     }
+    if (data.containsKey('performed_by')) {
+      context.handle(
+        _performedByMeta,
+        performedBy.isAcceptableOrUnknown(
+          data['performed_by']!,
+          _performedByMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1506,6 +1527,10 @@ class $CallingEventsTable extends CallingEvents
         DriftSqlType.string,
         data['${effectivePrefix}recorded_by'],
       ),
+      performedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}performed_by'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1534,6 +1559,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
   final DateTime occurredAt;
   final String? notes;
   final String? recordedBy;
+  final String? performedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -1544,6 +1570,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
     required this.occurredAt,
     this.notes,
     this.recordedBy,
+    this.performedBy,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -1560,6 +1587,9 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
     }
     if (!nullToAbsent || recordedBy != null) {
       map['recorded_by'] = Variable<String>(recordedBy);
+    }
+    if (!nullToAbsent || performedBy != null) {
+      map['performed_by'] = Variable<String>(performedBy);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -1581,6 +1611,9 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
       recordedBy: recordedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(recordedBy),
+      performedBy: performedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(performedBy),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1601,6 +1634,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
       occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
       notes: serializer.fromJson<String?>(json['notes']),
       recordedBy: serializer.fromJson<String?>(json['recordedBy']),
+      performedBy: serializer.fromJson<String?>(json['performedBy']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -1616,6 +1650,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
       'occurredAt': serializer.toJson<DateTime>(occurredAt),
       'notes': serializer.toJson<String?>(notes),
       'recordedBy': serializer.toJson<String?>(recordedBy),
+      'performedBy': serializer.toJson<String?>(performedBy),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -1629,6 +1664,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
     DateTime? occurredAt,
     Value<String?> notes = const Value.absent(),
     Value<String?> recordedBy = const Value.absent(),
+    Value<String?> performedBy = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -1639,6 +1675,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
     occurredAt: occurredAt ?? this.occurredAt,
     notes: notes.present ? notes.value : this.notes,
     recordedBy: recordedBy.present ? recordedBy.value : this.recordedBy,
+    performedBy: performedBy.present ? performedBy.value : this.performedBy,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1655,6 +1692,9 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
       recordedBy: data.recordedBy.present
           ? data.recordedBy.value
           : this.recordedBy,
+      performedBy: data.performedBy.present
+          ? data.performedBy.value
+          : this.performedBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -1670,6 +1710,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
           ..write('occurredAt: $occurredAt, ')
           ..write('notes: $notes, ')
           ..write('recordedBy: $recordedBy, ')
+          ..write('performedBy: $performedBy, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -1685,6 +1726,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
     occurredAt,
     notes,
     recordedBy,
+    performedBy,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1699,6 +1741,7 @@ class CallingEventRow extends DataClass implements Insertable<CallingEventRow> {
           other.occurredAt == this.occurredAt &&
           other.notes == this.notes &&
           other.recordedBy == this.recordedBy &&
+          other.performedBy == this.performedBy &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -1711,6 +1754,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
   final Value<DateTime> occurredAt;
   final Value<String?> notes;
   final Value<String?> recordedBy;
+  final Value<String?> performedBy;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -1722,6 +1766,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
     this.occurredAt = const Value.absent(),
     this.notes = const Value.absent(),
     this.recordedBy = const Value.absent(),
+    this.performedBy = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1734,6 +1779,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
     required DateTime occurredAt,
     this.notes = const Value.absent(),
     this.recordedBy = const Value.absent(),
+    this.performedBy = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -1751,6 +1797,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
     Expression<DateTime>? occurredAt,
     Expression<String>? notes,
     Expression<String>? recordedBy,
+    Expression<String>? performedBy,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -1763,6 +1810,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (notes != null) 'notes': notes,
       if (recordedBy != null) 'recorded_by': recordedBy,
+      if (performedBy != null) 'performed_by': performedBy,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1777,6 +1825,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
     Value<DateTime>? occurredAt,
     Value<String?>? notes,
     Value<String?>? recordedBy,
+    Value<String?>? performedBy,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -1789,6 +1838,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
       occurredAt: occurredAt ?? this.occurredAt,
       notes: notes ?? this.notes,
       recordedBy: recordedBy ?? this.recordedBy,
+      performedBy: performedBy ?? this.performedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1817,6 +1867,9 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
     if (recordedBy.present) {
       map['recorded_by'] = Variable<String>(recordedBy.value);
     }
+    if (performedBy.present) {
+      map['performed_by'] = Variable<String>(performedBy.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1841,6 +1894,7 @@ class CallingEventsCompanion extends UpdateCompanion<CallingEventRow> {
           ..write('occurredAt: $occurredAt, ')
           ..write('notes: $notes, ')
           ..write('recordedBy: $recordedBy, ')
+          ..write('performedBy: $performedBy, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -3242,6 +3296,7 @@ typedef $$CallingEventsTableCreateCompanionBuilder =
       required DateTime occurredAt,
       Value<String?> notes,
       Value<String?> recordedBy,
+      Value<String?> performedBy,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -3255,6 +3310,7 @@ typedef $$CallingEventsTableUpdateCompanionBuilder =
       Value<DateTime> occurredAt,
       Value<String?> notes,
       Value<String?> recordedBy,
+      Value<String?> performedBy,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -3297,6 +3353,11 @@ class $$CallingEventsTableFilterComposer
 
   ColumnFilters<String> get recordedBy => $composableBuilder(
     column: $table.recordedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3355,6 +3416,11 @@ class $$CallingEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3399,6 +3465,11 @@ class $$CallingEventsTableAnnotationComposer
 
   GeneratedColumn<String> get recordedBy => $composableBuilder(
     column: $table.recordedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
     builder: (column) => column,
   );
 
@@ -3449,6 +3520,7 @@ class $$CallingEventsTableTableManager
                 Value<DateTime> occurredAt = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> recordedBy = const Value.absent(),
+                Value<String?> performedBy = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -3460,6 +3532,7 @@ class $$CallingEventsTableTableManager
                 occurredAt: occurredAt,
                 notes: notes,
                 recordedBy: recordedBy,
+                performedBy: performedBy,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -3473,6 +3546,7 @@ class $$CallingEventsTableTableManager
                 required DateTime occurredAt,
                 Value<String?> notes = const Value.absent(),
                 Value<String?> recordedBy = const Value.absent(),
+                Value<String?> performedBy = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -3484,6 +3558,7 @@ class $$CallingEventsTableTableManager
                 occurredAt: occurredAt,
                 notes: notes,
                 recordedBy: recordedBy,
+                performedBy: performedBy,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

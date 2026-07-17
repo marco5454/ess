@@ -146,6 +146,7 @@ class CallingsDao {
             occurredAt: _parseTimestamp(map['occurred_at'])!,
             notes: Value(map['notes'] as String?),
             recordedBy: Value(map['recorded_by'] as String?),
+            performedBy: Value(map['performed_by'] as String?),
             createdAt: _parseTimestamp(map['created_at'])!,
             updatedAt: _parseTimestamp(map['updated_at']) ??
                 _parseTimestamp(map['created_at'])!,
@@ -169,6 +170,7 @@ class CallingsDao {
             occurredAt: _parseTimestamp(map['occurred_at'])!,
             notes: Value(map['notes'] as String?),
             recordedBy: Value(map['recorded_by'] as String?),
+            performedBy: Value(map['performed_by'] as String?),
             createdAt: _parseTimestamp(map['created_at'])!,
             updatedAt: _parseTimestamp(map['updated_at']) ??
                 _parseTimestamp(map['created_at'])!,
@@ -239,6 +241,7 @@ class CallingsDao {
             occurredAt: event.occurredAt,
             notes: Value(event.notes),
             recordedBy: Value(event.recordedBy),
+            performedBy: Value(event.performedBy),
             createdAt: event.createdAt,
             updatedAt: event.createdAt,
             deletedAt: const Value(null),
@@ -299,6 +302,7 @@ class CallingsDao {
       occurredAt: row.occurredAt,
       notes: row.notes,
       recordedBy: row.recordedBy,
+      performedBy: row.performedBy,
       createdAt: row.createdAt,
     );
   }

@@ -336,6 +336,16 @@ class _EventTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(_fmtDateTime(event.occurredAt.toLocal())),
+          if (event.performedBy != null && event.performedBy!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'By: ${event.performedBy!}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           if (event.notes != null && event.notes!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
