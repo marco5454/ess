@@ -178,5 +178,126 @@ void main() {
       expect(text, contains('Primary Teacher → Set apart'));
       expect(text, contains('2026-06-15'));
     });
+
+    test('meetingDate override replaces the header date', () {
+      final agenda = BishopricAgenda(
+        generatedAt: DateTime(2026, 7, 8),
+        inServiceCount: 0,
+        readyToSustain: const [],
+        readyToSetApart: const [],
+        awaitingResponse: const [],
+        newSelections: const [],
+        stalled: const [],
+        recent: const [],
+      );
+
+      final text = renderAgendaAsText(
+        agenda,
+        meetingDate: DateTime(2026, 12, 25),
+      );
+
+      expect(text, contains('25 December 2026'));
+      expect(text, isNot(contains('8 July 2026')));
+    });
+
+    test('rows with no linked member are skipped from sections', () {
+      final member = _member(id: 'm1', first: 'John', last: 'Smith');
+      final calling1 = _calling(
+        id: 'c1',
+        memberId: 'm1',
+        title: 'Elders Quorum President',
+      );
+      final calling2 = _calling(
+        id: 'c2',
+        memberId: 'ghost',
+        title: 'Orphaned Calling',
+      );
+      final event1 = _event(
+        id: 'e1',
+        callingId: 'c1',
+        state: CallingState.accepted,
+        occurredAt: DateTime.now().subtract(const Duration(days: 2)),
+      );
+      final event2 = _event(
+        id: 'e2',
+        callingId: 'c2',
+        state: CallingState.accepted,
+        occurredAt: DateTime.now().subtract(const Duration(days: 2)),
+      );
+
+      final agenda = BishopricAgenda(
+        generatedAt: DateTime(2026, 7, 8),
+        inServiceCount: 1,
+        readyToSustain: [
+          _row(member: member, calling: calling1, event: event1),
+          // No member linked — should be filtered out.
+          CallingSummaryRow(
+            calling: calling2,
+            member: null,
+            latestEvent: event2,
+          ),
+        ],
+        readyToSetApart: const [],
+        awaitingResponse: const [],
+        newSelections: const [],
+        stalled: const [],
+        recent: const [],
+      );
+
+      final text = renderAgendaAsText(agenda);
+
+      // Section count reflects filtered rows only.
+      expect(text, contains('READY TO SUSTAIN (1)'));
+      expect(text, contains('John Smith'));
+      expect(text, isNot(contains('Orphaned Calling')));
+      expect(text, isNot(contains('Unknown member')));
+    });
+
+    test('recent-activity rows with no member are skipped', () {
+      final member = _member(id: 'm1', first: 'Jane', last: 'Doe');
+      final calling1 = _calling(
+        id: 'c1',
+        memberId: 'm1',
+        title: 'Primary Teacher',
+      );
+      final calling2 = _calling(
+        id: 'c2',
+        memberId: 'ghost',
+        title: 'Orphaned Calling',
+      );
+      final event1 = _event(
+        id: 'e1',
+        callingId: 'c1',
+        state: CallingState.setApart,
+        occurredAt: DateTime(2026, 6, 15),
+      );
+      final event2 = _event(
+        id: 'e2',
+        callingId: 'c2',
+        state: CallingState.setApart,
+        occurredAt: DateTime(2026, 6, 14),
+      );
+
+      final agenda = BishopricAgenda(
+        generatedAt: DateTime(2026, 7, 8),
+        inServiceCount: 1,
+        readyToSustain: const [],
+        readyToSetApart: const [],
+        awaitingResponse: const [],
+        newSelections: const [],
+        stalled: const [],
+        recent: [
+          RecentActivityRow(event: event1, calling: calling1, member: member),
+          RecentActivityRow(event: event2, calling: calling2, member: null),
+        ],
+      );
+
+      final text = renderAgendaAsText(agenda);
+
+      expect(text, contains('RECENT ACTIVITY (1)'));
+      expect(text, contains('Jane Doe'));
+      expect(text, isNot(contains('Unknown member')));
+      expect(text, isNot(contains('Orphaned Calling')));
+    });
   });
 }

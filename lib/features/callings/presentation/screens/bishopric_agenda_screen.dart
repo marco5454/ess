@@ -19,6 +19,14 @@
 /// The visible header carries a "Confidential — Bishopric Only" banner
 /// so the shared artifact is self-labeling: even if it ends up in a
 /// screenshot or a paper printout, it says what it is.
+///
+/// The clerk can pick a specific meeting date via the calendar icon in
+/// the AppBar (or by tapping the header date). The pipeline data itself
+/// is always live — the picked date only affects the header line and the
+/// share subject, so an agenda prepped on Friday still reads with the
+/// correct Sunday meeting date. Rows with no linked member are omitted
+/// from the shared plaintext since "Unknown member" carries no value in
+/// a meeting.
 library;
 
 import 'package:flutter/material.dart';
@@ -31,15 +39,49 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/chapel_theme.dart';
 import '../providers/callings_providers.dart';
 
-class BishopricAgendaScreen extends ConsumerWidget {
+class BishopricAgendaScreen extends ConsumerStatefulWidget {
   const BishopricAgendaScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BishopricAgendaScreen> createState() =>
+      _BishopricAgendaScreenState();
+}
+
+class _BishopricAgendaScreenState extends ConsumerState<BishopricAgendaScreen> {
+  /// The meeting date to stamp on the agenda header and share subject.
+  ///
+  /// Defaults to today. The pipeline data itself is always live — this only
+  /// affects the label on the printed / shared artifact. That way a clerk
+  /// can prep Sunday's agenda on Friday and still have the header read the
+  /// correct meeting date.
+  DateTime _meetingDate = DateTime.now();
+
+  Future<void> _pickMeetingDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _meetingDate,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 1),
+      helpText: 'Meeting date',
+    );
+    if (picked == null) return;
+    setState(() => _meetingDate = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final agendaAsync = ref.watch(bishopricAgendaProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bishopric agenda'),
+        actions: [
+          IconButton(
+            tooltip: 'Meeting date',
+            icon: const Icon(Icons.event),
+            onPressed: _pickMeetingDate,
+          ),
+        ],
       ),
       body: agendaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -52,16 +94,26 @@ class BishopricAgendaScreen extends ConsumerWidget {
             ),
           ),
         ),
-        data: (agenda) => _AgendaBody(agenda: agenda),
+        data: (agenda) => _AgendaBody(
+          agenda: agenda,
+          meetingDate: _meetingDate,
+          onPickDate: _pickMeetingDate,
+        ),
       ),
     );
   }
 }
 
 class _AgendaBody extends StatelessWidget {
-  const _AgendaBody({required this.agenda});
+  const _AgendaBody({
+    required this.agenda,
+    required this.meetingDate,
+    required this.onPickDate,
+  });
 
   final BishopricAgenda agenda;
+  final DateTime meetingDate;
+  final VoidCallback onPickDate;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +127,11 @@ class _AgendaBody extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              _AgendaHeader(agenda: agenda),
+              _AgendaHeader(
+                agenda: agenda,
+                meetingDate: meetingDate,
+                onPickDate: onPickDate,
+              ),
               const SizedBox(height: 8),
               const _ConfidentialBanner(),
               const SizedBox(height: 20),
@@ -107,7 +163,7 @@ class _AgendaBody extends StatelessWidget {
             ],
           ),
         ),
-        _ShareBar(agenda: agenda, theme: theme),
+        _ShareBar(agenda: agenda, meetingDate: meetingDate, theme: theme),
       ],
     );
   }
@@ -118,9 +174,15 @@ class _AgendaBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AgendaHeader extends StatelessWidget {
-  const _AgendaHeader({required this.agenda});
+  const _AgendaHeader({
+    required this.agenda,
+    required this.meetingDate,
+    required this.onPickDate,
+  });
 
   final BishopricAgenda agenda;
+  final DateTime meetingDate;
+  final VoidCallback onPickDate;
 
   @override
   Widget build(BuildContext context) {
@@ -134,11 +196,30 @@ class _AgendaHeader extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
-        Text(
-          '${_formatDateLong(agenda.generatedAt)} · '
-          '${agenda.inServiceCount} in service',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        InkWell(
+          onTap: onPickDate,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.event,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${_formatDateLong(meetingDate)} · '
+                  '${agenda.inServiceCount} in service',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -584,9 +665,14 @@ class _RecentActivityRowTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ShareBar extends StatelessWidget {
-  const _ShareBar({required this.agenda, required this.theme});
+  const _ShareBar({
+    required this.agenda,
+    required this.meetingDate,
+    required this.theme,
+  });
 
   final BishopricAgenda agenda;
+  final DateTime meetingDate;
   final ThemeData theme;
 
   @override
@@ -603,7 +689,7 @@ class _ShareBar extends StatelessWidget {
             child: FilledButton.icon(
               icon: const Icon(Icons.ios_share),
               label: const Text('Share as text'),
-              onPressed: () => _shareAgenda(context, agenda),
+              onPressed: () => _shareAgenda(context, agenda, meetingDate),
             ),
           ),
         ),
@@ -612,11 +698,15 @@ class _ShareBar extends StatelessWidget {
   }
 }
 
-Future<void> _shareAgenda(BuildContext context, BishopricAgenda agenda) async {
-  final text = renderAgendaAsText(agenda);
+Future<void> _shareAgenda(
+  BuildContext context,
+  BishopricAgenda agenda,
+  DateTime meetingDate,
+) async {
+  final text = renderAgendaAsText(agenda, meetingDate: meetingDate);
   final result = await Share.share(
     text,
-    subject: 'Bishopric agenda — ${_formatDateLong(agenda.generatedAt)}',
+    subject: 'Bishopric agenda — ${_formatDateLong(meetingDate)}',
   );
   if (!context.mounted) return;
   if (result.status == ShareResultStatus.unavailable) {
@@ -638,21 +728,36 @@ Future<void> _shareAgenda(BuildContext context, BishopricAgenda agenda) async {
 /// Render an agenda as plaintext suitable for the platform share sheet.
 ///
 /// Public so tests can call it without spinning up a widget.
-String renderAgendaAsText(BishopricAgenda agenda) {
+///
+/// [meetingDate] overrides the date printed in the header and is what the
+/// clerk sees when they picked a specific meeting date; when omitted the
+/// snapshot's [BishopricAgenda.generatedAt] is used instead.
+///
+/// Rows whose [CallingSummaryRow.member] or [RecentActivityRow.member] is
+/// null are skipped — the shared plaintext is meant to be human-readable
+/// and "Unknown member" carries no value in a meeting. Section headers
+/// and their `(none…)` placeholders are still emitted so the overall
+/// document shape stays stable even when everything filters out.
+String renderAgendaAsText(
+  BishopricAgenda agenda, {
+  DateTime? meetingDate,
+}) {
+  final date = meetingDate ?? agenda.generatedAt;
   final buf = StringBuffer();
   buf.writeln('Bishopric Agenda');
-  buf.writeln(_formatDateLong(agenda.generatedAt));
+  buf.writeln(_formatDateLong(date));
   buf.writeln('${agenda.inServiceCount} callings in service');
   buf.writeln('Confidential — Bishopric only');
   buf.writeln();
 
   void section(String title, List<CallingSummaryRow> rows,
       {String emptyLabel = '(none)'}) {
-    buf.writeln('${title.toUpperCase()} (${rows.length})');
-    if (rows.isEmpty) {
+    final named = rows.where((r) => r.member != null).toList(growable: false);
+    buf.writeln('${title.toUpperCase()} (${named.length})');
+    if (named.isEmpty) {
       buf.writeln('  $emptyLabel');
     } else {
-      for (final row in rows) {
+      for (final row in named) {
         buf.writeln('  - ${_plainRowLine(row)}');
       }
     }
@@ -666,12 +771,14 @@ String renderAgendaAsText(BishopricAgenda agenda) {
   section('Stalled 14+ days', agenda.stalled,
       emptyLabel: '(none — nothing stalled)');
 
-  buf.writeln('RECENT ACTIVITY (${agenda.recent.length})');
-  if (agenda.recent.isEmpty) {
+  final namedRecent =
+      agenda.recent.where((r) => r.member != null).toList(growable: false);
+  buf.writeln('RECENT ACTIVITY (${namedRecent.length})');
+  if (namedRecent.isEmpty) {
     buf.writeln('  (none)');
   } else {
-    for (final row in agenda.recent) {
-      final name = row.member?.displayName ?? 'Unknown member';
+    for (final row in namedRecent) {
+      final name = row.member!.displayName;
       final date = _formatShortDate(row.event.occurredAt);
       buf.writeln(
           '  - $name — ${row.calling.title} → ${row.event.state.label} ($date)');
@@ -682,6 +789,8 @@ String renderAgendaAsText(BishopricAgenda agenda) {
 }
 
 String _plainRowLine(CallingSummaryRow row) {
+  // Precondition: row.member is non-null (callers filter). Kept defensive
+  // just in case a new caller is added.
   final name = row.member?.displayName ?? 'Unknown member';
   final org = (row.calling.organization ?? '').trim();
   final orgPart = org.isEmpty ? '' : ' ($org)';
